@@ -1,0 +1,74 @@
+﻿@model IEnumerable<AhuenniyChat.Models.User>
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "_Layout";
+}
+
+@if (!string.IsNullOrEmpty(ViewBag.CurrentUserName))
+{
+    <div class="user-info">
+        <h2>Информация о пользователе</h2>
+            <ul>
+                <li><strong>Имя пользователя:</strong> @ViewBag.CurrentUser.UserName</li>
+                <li><strong>Email:</strong> @ViewBag.CurrentUser.Email</li>
+                <li><strong>Роль:</strong> @ViewBag.CurrentUser.Role</li>
+                <!-- Добавьте другие свойства пользователя, если они есть -->
+            </ul>
+    </div>
+
+    @if (ViewBag.CurrentUser.Role == "Admin") 
+    {
+        <p>
+            <a asp-action="Create">Create New</a>
+        </p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>
+                        @Html.DisplayNameFor(model => model.UserName)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Email)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.PasswordHash)
+                    </th>
+                    <th>
+                        @Html.DisplayNameFor(model => model.Role)
+                    </th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+        @foreach (var item in Model) {
+                <tr>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.UserName)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Email)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.PasswordHash)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(modelItem => item.Role)
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                        <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                        <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                    </td>
+                </tr>
+        }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            У вас нет прав для просмотра списка пользователей.
+        </div>
+    }
+}
