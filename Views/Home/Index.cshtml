@@ -2,7 +2,76 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <h2>Users</h2>
+            <input type="text" id="userSearch" list="users" placeholder="Search users...">
+            <datalist id="users">
+                @if (ViewBag.UsersWithMessages != null)
+                {
+                    @foreach (var user in ViewBag.UsersWithMessages)
+                    {
+                        <option value="@user.Name" data-userid="@user.Id"></option>
+                    }
+                }
+            </datalist>
+            <ul id="userList" style="display:none;"> </ul>
+        </div>
+        <div class="col-md-6">
+            <h2>Messages</h2>
+            <div id="messageArea">
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.getElementById('userSearch').addEventListener('input', function () {
+        let selectedUser = null;
+        const inputValue = this.value.toLowerCase();
+
+        if (inputValue === "") {
+            document.getElementById('userList').style.display = 'none';
+            document.getElementById('messageArea').innerHTML = '';
+            return;
+        }
+        // Find matching users from the datalist
+        const options = Array.from(document.querySelectorAll('#users option'));
+        const matchingUsers = options.filter(option => option.value.toLowerCase().includes(inputValue));
+
+        const userList = document.getElementById('userList');
+        userList.innerHTML = '';
+        userList.style.display = matchingUsers.length > 0 ? '' : 'none'; // Show/hide list
+
+        matchingUsers.forEach(option => {
+            const li = document.createElement('li');
+            li.textContent = option.value;
+            li.dataset.userid = option.dataset.userid;
+            li.addEventListener('click', function () {
+                selectUser(this.dataset.userid);
+                document.getElementById('userSearch').value = this.textContent;
+                document.getElementById('userList').style.display = 'none';
+
+            });
+            userList.appendChild(li);
+        });
+    });
+
+
+    function selectUser(userId) {
+        fetch(`/Home/GetMessages/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                let messageHtml = '';
+                if (data.length > 0) {
+                    data.forEach(message => {
+                        messageHtml += `<p>${message.senderName}: ${message.text}</p>`;
+                    });
+                } else {
+                    messageHtml = '<p>No messages found for this user.</p>';
+                }
+                document.getElementById('messageArea').innerHTML = messageHtml;
+            });
+    }
+</script>

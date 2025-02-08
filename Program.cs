@@ -51,7 +51,7 @@ app.MapControllers(); // Reordered
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Auth}/{action=Login}/{id?}");
+    pattern: "{controller=Auth}/{action=Register}/{id?}");
 
 
 app.Run();

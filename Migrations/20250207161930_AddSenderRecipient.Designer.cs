@@ -4,6 +4,7 @@ using AhuenniyChat.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AhuenniyChat.Migrations
 {
     [DbContext(typeof(AhuenniyChatContext))]
-    partial class AhuenniyChatContextModelSnapshot : ModelSnapshot
+    [Migration("20250207161930_AddSenderRecipient")]
+    partial class AddSenderRecipient
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,13 +32,18 @@ namespace AhuenniyChat.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<int>("ReceiverId")
-                        .HasColumnType("int");
+                    b.Property<string>("ReceiverId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("RecipientId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SenderId")
+                    b.Property<string>("SenderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SenderId1")
                         .HasColumnType("int");
 
                     b.Property<string>("Text")
@@ -50,7 +57,7 @@ namespace AhuenniyChat.Migrations
 
                     b.HasIndex("RecipientId");
 
-                    b.HasIndex("SenderId");
+                    b.HasIndex("SenderId1");
 
                     b.ToTable("Message");
                 });
@@ -92,9 +99,7 @@ namespace AhuenniyChat.Migrations
 
                     b.HasOne("AhuenniyChat.Models.User", "Sender")
                         .WithMany()
-                        .HasForeignKey("SenderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("SenderId1");
 
                     b.Navigation("Recipient");
 

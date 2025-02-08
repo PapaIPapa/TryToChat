@@ -23,7 +23,11 @@ namespace AhuenniyChat
         // GET: Users
         public async Task<IActionResult> Index()
         {
-            // Получаем список всех пользователей
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+                // Получаем список всех пользователей
             var users = await _context.User.ToListAsync();
 
             // Получаем имя текущего пользователя
