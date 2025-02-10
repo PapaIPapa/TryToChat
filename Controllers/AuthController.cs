@@ -90,6 +90,7 @@ namespace AhuenniyChat.Controllers
 
                     var claims = new List<Claim>
                     {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                     new Claim(ClaimTypes.Name, user.UserName),
                     new Claim("UserId", user.Id.ToString())
                     };

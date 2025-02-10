@@ -25,6 +25,14 @@ namespace AhuenniyChat.Controllers
         [HttpGet("")]
         public async Task<IActionResult> Index()
         {
+
+            // Проверяем, аутентифицирован ли пользователь
+            if (!User.Identity.IsAuthenticated)
+            {
+                // Если пользователь аутентифицирован, перенаправляем на главную страницу
+                return RedirectToAction("Register", "Auth");
+            }
+
             var currentUserName = User.Identity?.Name;
             var currentUser = await _context.User.FirstOrDefaultAsync(u => u.UserName == currentUserName);
 
@@ -55,6 +63,15 @@ namespace AhuenniyChat.Controllers
                 .ToListAsync();
 
             return Json(users);
+        }
+
+        [HttpGet("GetUser")]
+        public async Task<IActionResult> GetUser()
+        {
+            var currentUserName = User.Identity?.Name;
+            var currentUser = await _context.User.FirstOrDefaultAsync(u => u.UserName == currentUserName);
+
+            return Json(currentUser);
         }
 
 
@@ -165,20 +182,6 @@ namespace AhuenniyChat.Controllers
                 _context.Message.Add(message);
                 await _context.SaveChangesAsync();
 
-                try
-                {
-                    // Отправка сообщения получателю
-                    await _hubContext.Clients.User(receiverId.ToString()).SendAsync("ReceiveMessage", currentUser.UserName, text, message.Id);
-
-                    // Отправка сообщения отправителю (чтобы оно отображалось в его чате)
-                    await _hubContext.Clients.User(currentUser.Id.ToString()).SendAsync("ReceiveMessage", currentUser.UserName, text, message.Id);
-                }
-                catch (Exception hubEx)
-                {
-                    // Логируем ошибку, но не прерываем выполнение
-                    Console.WriteLine($"Ошибка при отправке сообщения через SignalR: {hubEx.Message}");
-                }
-
                 return Ok(new { success = true, message = "Message sent successfully." });
             }
             catch (Exception ex)
@@ -187,6 +190,7 @@ namespace AhuenniyChat.Controllers
                 return StatusCode(500, new { success = false, message = "Internal server error." });
             }
         }
+
 
 
 

@@ -51,6 +51,7 @@ app.UseAuthorization();
 app.MapRazorPages(); // Reordered
 app.MapControllers(); // Reordered
 
+
 app.MapHub<ChatHub>("/chatHub");
 app.MapControllerRoute(
     name: "default",

@@ -49,24 +49,86 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let selectedUserId = null;
 
-    // Подключение к SignalR
+
+
     const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/chatHub") // Убедитесь, что этот URL соответствует вашему хабу
-        .build();
+    .withUrl('/chathub')
+    .withAutomaticReconnect()
+    .build();
 
-    connection.on("ReceiveMessage", function (userId, message, messageId) {
-        // Отображение полученного сообщения в чате
-        const messageHtml = `
-            <div class="message ${userId === selectedUserId ? 'message-sent' : 'message-received'}">
-                <strong>${userId}</strong>: ${message}
-            </div>`;
-        messageArea.innerHTML += messageHtml;
-        messageArea.scrollTop = messageArea.scrollHeight; // Прокрутка к последнему сообщению
-    });
+// Обработка входящих сообщений
+connection.on('ReceiveMessage', (senderName, text) => {
+    console.log(`Received message from ${senderName}: ${text}`);
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const formattedTime = `${hours}:${minutes}`;
+    const messageHtml = `
+        <div class="message message-received">
+             ${text} <sub>${formattedTime}</sub>
+        </div>`;
+    document.getElementById('messageArea').innerHTML += messageHtml;
+    document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
+});
 
-    connection.start().catch(function (err) {
-        console.error(err.toString());
+// Запуск соединения
+connection.start()
+    .then(() => console.log('SignalR connection established.'))
+    .catch(err => console.error('SignalR connection error:', err));
+
+// Отправка сообщения
+if (sendMessageButton) {
+    sendMessageButton.addEventListener('click', async () => {
+        const messageText = document.getElementById('messageInput').value.trim();
+        if (!messageText) {
+            alert('Please enter a message.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/Home/GetUser');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const user = await response.json();
+            console.log(user);
+            const currentUserName = user.userName;
+
+            const receiverId = selectedUserId; // ID выбранного пользователя
+            const senderName = currentUserName; // Имя текущего пользователя
+            console.log(receiverId);
+            console.log(senderName);
+            console.log(messageText);
+            // Отправка сообщения через SignalR
+            await connection.invoke("SendMessage", parseInt(receiverId), senderName, messageText)
+                .catch(err => console.error('Error sending message:', err));
+
+            // Очистка поля ввода
+            document.getElementById('messageInput').value = '';
+
+            // Отображение отправленного сообщения в чате
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const formattedTime = `${hours}:${minutes}`;
+
+            const messageHtml = `
+                <div class="message message-sent">
+                    ${messageText} <sub>${formattedTime}</sub>
+                </div>`;
+            document.getElementById('messageArea').innerHTML += messageHtml;
+            document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error sending message. Please try again later.');
+        }
     });
+}
+
+
+
+
+
 
     // Обработка ввода в поле поиска
     userSearchInput.addEventListener('input', function () {
@@ -142,15 +204,12 @@ function loadMessages(userId) {
             return response.json();
         })
         .then(data => {
-            console.log(data);
             if (data && data.length > 0) {
                 const sortedMessages = data.sort((a, b) => new Date(a.Timestamp) - new Date(b.Timestamp));
-                console.log(sortedMessages);
                 const messageHtml = sortedMessages.map(message => `
                     <div class="message ${message.isCurrentUserSender ? 'message-sent' : 'message-received'}">
                          ${message.text}     <sub>${message.timestamp}</sub>
                     </div>`).join('');
-                    console.log(messageHtml);
                 messageArea.innerHTML = messageHtml;
                 messageArea.scrollTop = messageArea.scrollHeight;
             } else {
@@ -189,21 +248,23 @@ function loadMessages(userId) {
         })
         .then(data => {
             if (data.success) {
-                // Отображение отправленного сообщения в чате
-                const now = new Date();
-                // Получаем часы и минуты
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
+                console.log(data);
 
-                // Форматируем время
-                const formattedTime = `${hours}:${minutes}`;
-                const messageHtml = `
-                    <div class="message message-sent">
-                        ${messageText}     <sub>${formattedTime}</sub>
-                    </div>`;
-                messageArea.innerHTML += messageHtml;
-                messageArea.scrollTop = messageArea.scrollHeight; // Прокрутка к последнему сообщению
-                messageInput.value = ''; // Очищаем поле ввода сообщения
+                //// Отображение отправленного сообщения в чате
+                //const now = new Date();
+                //// Получаем часы и минуты
+                //const hours = String(now.getHours()).padStart(2, '0');
+                //const minutes = String(now.getMinutes()).padStart(2, '0');
+
+                //// Форматируем время
+                //const formattedTime = `${hours}:${minutes}`;
+                //const messageHtml = `
+                //    <div class="message message-sent">
+                //        ${messageText}     <sub>${formattedTime}</sub>
+                //    </div>`;
+                //messageArea.innerHTML += messageHtml;
+                //messageArea.scrollTop = messageArea.scrollHeight; // Прокрутка к последнему сообщению
+                //messageInput.value = ''; // Очищаем поле ввода сообщения
             } else {
                 alert('Failed to send message.');
             }
@@ -212,6 +273,7 @@ function loadMessages(userId) {
             console.error('Error sending message:', error);
             alert('Error sending message. Please try again later.');
         });
+        
     }
 
     // Функция сброса результатов поиска
