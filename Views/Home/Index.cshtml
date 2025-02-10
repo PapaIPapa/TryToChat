@@ -2,9 +2,9 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="container">
+
     <div class="row">
-        <div class="col-md-6 leftSide">
+        <div class="col-md-4 leftSide"> <!-- Изменено на col-md-4 -->
             <h2>Search Users</h2>
             <input type="text" id="userSearch" placeholder="Search users..." autocomplete="off">
             <ul id="searchResults" style="display:none; list-style-type: none; padding: 0;"></ul>
@@ -20,7 +20,7 @@
                 }
             </ul>
         </div>
-        <div class="col-md-6 rightSide">
+        <div class="col-md-8 rightSide"> <!-- Изменено на col-md-8 -->
             <h2 id="messagesWith">Messages</h2>
             <div id="messageArea">
                 <p>Select a user to start chatting.</p>
@@ -31,7 +31,8 @@
             </div>
         </div>
     </div>
-</div>
+
+
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
@@ -122,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function selectUser(userId, userName) {
         selectedUserId = userId;
         messagesWith.textContent = `Messages with ${userName}`;
-        messageInputArea.style.display = 'block';
+        messageInputArea.style.display = 'flex';
         loadMessages(userId);
         resetSearchResults();
     }

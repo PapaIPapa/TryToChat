@@ -22,12 +22,13 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
+    padding: 20px;
 }
 
 .row {
@@ -105,6 +106,8 @@ h2 {
     padding: 15px;
     background-color: #f9f9f9;
     margin-bottom: 15px;
+    display: flex;
+    flex-direction: column; /* Добавлено для вертикального выравнивания */
 }
 
     #messageArea p {
@@ -120,10 +123,12 @@ h2 {
 #messageInputArea {
     display: flex;
     gap: 10px;
+    margin-top: auto; /* Позволяет отодвинуть область ввода вниз */
+    align-items: center; /* Выравниваем элементы по вертикали */
 }
 
 #messageInput {
-    flex: 1;
+    flex: 1; /* Поле ввода занимает всё доступное пространство */
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -131,18 +136,20 @@ h2 {
 }
 
 #sendMessageButton {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
+    padding: 10px 15px;
     border: none;
     border-radius: 4px;
+    background-color: #007bff;
+    color: white;
     cursor: pointer;
-    font-size: 14px;
+    margin-left: auto; /* Прижимаем кнопку к правому краю */
+    white-space: nowrap; /* Текст кнопки не переносится */
 }
 
     #sendMessageButton:hover {
         background-color: #0056b3;
     }
+
 
 /* Стили для сообщений */
 .message {
