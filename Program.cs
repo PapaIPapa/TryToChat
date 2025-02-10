@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using AhuenniyChat.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using AhuenniyChat.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AhuenniyChatContext>(options =>
@@ -11,6 +12,8 @@ builder.Services.AddDbContext<AhuenniyChatContext>(options =>
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddRazorPages();
+
+builder.Services.AddSignalR();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -45,10 +48,10 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-
 app.MapRazorPages(); // Reordered
 app.MapControllers(); // Reordered
 
+app.MapHub<ChatHub>("/chatHub");
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Auth}/{action=Register}/{id?}");

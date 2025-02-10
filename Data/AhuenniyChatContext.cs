@@ -17,5 +17,20 @@ namespace AhuenniyChat.Data
 
         public DbSet<AhuenniyChat.Models.User> User { get; set; } = default!;
         public DbSet<AhuenniyChat.Models.Message> Message { get; set; } = default!;
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Recipient)
+                .WithMany()
+                .HasForeignKey(m => m.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
     }
 }

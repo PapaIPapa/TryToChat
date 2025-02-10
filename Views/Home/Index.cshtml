@@ -4,74 +4,229 @@
 
 <div class="container">
     <div class="row">
-        <div class="col-md-6">
-            <h2>Users</h2>
-            <input type="text" id="userSearch" list="users" placeholder="Search users...">
-            <datalist id="users">
+        <div class="col-md-6 leftSide">
+            <h2>Search Users</h2>
+            <input type="text" id="userSearch" placeholder="Search users..." autocomplete="off">
+            <ul id="searchResults" style="display:none; list-style-type: none; padding: 0;"></ul>
+
+            <h2>Users with Messages</h2>
+            <ul id="userList">
                 @if (ViewBag.UsersWithMessages != null)
                 {
-                    @foreach (var user in ViewBag.UsersWithMessages)
+                    foreach (var user in ViewBag.UsersWithMessages)
                     {
-                        <option value="@user.Name" data-userid="@user.Id"></option>
+                        <li data-userid="@user.Id" class="existing-user">@user.UserName</li>
                     }
                 }
-            </datalist>
-            <ul id="userList" style="display:none;"> </ul>
+            </ul>
         </div>
-        <div class="col-md-6">
-            <h2>Messages</h2>
+        <div class="col-md-6 rightSide">
+            <h2 id="messagesWith">Messages</h2>
             <div id="messageArea">
+                <p>Select a user to start chatting.</p>
+            </div>
+            <div id="messageInputArea" style="display:none;">
+                <input type="text" id="messageInput" placeholder="Type your message here..." />
+                <button id="sendMessageButton">Send</button>
             </div>
         </div>
     </div>
 </div>
 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
+
 <script>
-    document.getElementById('userSearch').addEventListener('input', function () {
-        let selectedUser = null;
-        const inputValue = this.value.toLowerCase();
+document.addEventListener('DOMContentLoaded', function () {
+    const userSearchInput = document.getElementById('userSearch');
+    const searchResults = document.getElementById('searchResults');
+    const messageInputArea = document.getElementById('messageInputArea');
+    const messageInput = document.getElementById('messageInput');
+    const sendMessageButton = document.getElementById('sendMessageButton');
+    const messageArea = document.getElementById('messageArea');
+    const messagesWith = document.getElementById('messagesWith');
 
-        if (inputValue === "") {
-            document.getElementById('userList').style.display = 'none';
-            document.getElementById('messageArea').innerHTML = '';
-            return;
+    let selectedUserId = null;
+
+    // Подключение к SignalR
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chatHub") // Убедитесь, что этот URL соответствует вашему хабу
+        .build();
+
+    connection.on("ReceiveMessage", function (userId, message, messageId) {
+        // Отображение полученного сообщения в чате
+        const messageHtml = `
+            <div class="message ${userId === selectedUserId ? 'message-sent' : 'message-received'}">
+                <strong>${userId}</strong>: ${message}
+            </div>`;
+        messageArea.innerHTML += messageHtml;
+        messageArea.scrollTop = messageArea.scrollHeight; // Прокрутка к последнему сообщению
+    });
+
+    connection.start().catch(function (err) {
+        console.error(err.toString());
+    });
+
+    // Обработка ввода в поле поиска
+    userSearchInput.addEventListener('input', function () {
+        const searchTerm = userSearchInput.value.trim();
+        searchResults.style.display = searchTerm.length > 0 ? 'block' : 'none';
+
+        if (searchTerm.length > 0) {
+            fetch(`/Home/SearchUsers?term=${encodeURIComponent(searchTerm)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    searchResults.innerHTML = data.length > 0
+                        ? data.map(user => `<li data-userid="${user.id}" class="search-result-item">${user.userName}</li>`).join('')
+                        : '<li>No users found</li>';
+                })
+                .catch(error => console.error('Error:', error));
+        } else {
+            searchResults.innerHTML = '';
         }
-        // Find matching users from the datalist
-        const options = Array.from(document.querySelectorAll('#users option'));
-        const matchingUsers = options.filter(option => option.value.toLowerCase().includes(inputValue));
+    });
 
-        const userList = document.getElementById('userList');
-        userList.innerHTML = '';
-        userList.style.display = matchingUsers.length > 0 ? '' : 'none'; // Show/hide list
+    // Обработка клика по результатам поиска
+    searchResults.addEventListener('click', function (event) {
+        if (event.target.classList.contains('search-result-item')) {
+            const userId = parseInt(event.target.dataset.userid);
+            if (!isNaN(userId)) {
+                selectUser(userId, event.target.textContent);
+            } else {
+                console.error("Некорректный формат userId.");
+            }
+        }
+    });
 
-        matchingUsers.forEach(option => {
-            const li = document.createElement('li');
-            li.textContent = option.value;
-            li.dataset.userid = option.dataset.userid;
-            li.addEventListener('click', function () {
-                selectUser(this.dataset.userid);
-                document.getElementById('userSearch').value = this.textContent;
-                document.getElementById('userList').style.display = 'none';
-
-            });
-            userList.appendChild(li);
+    // Обработка клика по существующему пользователю
+    document.querySelectorAll('.existing-user').forEach(item => {
+        item.addEventListener('click', function () {
+            const userId = parseInt(this.dataset.userid);
+            if (!isNaN(userId)) {
+                selectUser(userId, this.textContent);
+            } else {
+                console.error("Некорректный формат userId.");
+            }
         });
     });
 
+    // Обработка клика по кнопке отправки сообщения
+    sendMessageButton.addEventListener('click', sendMessage);
 
-    function selectUser(userId) {
-        fetch(`/Home/GetMessages/${userId}`)
-            .then(response => response.json())
-            .then(data => {
-                let messageHtml = '';
-                if (data.length > 0) {
-                    data.forEach(message => {
-                        messageHtml += `<p>${message.senderName}: ${message.text}</p>`;
-                    });
-                } else {
-                    messageHtml = '<p>No messages found for this user.</p>';
-                }
-                document.getElementById('messageArea').innerHTML = messageHtml;
-            });
+    // Функция выбора пользователя
+    function selectUser(userId, userName) {
+        selectedUserId = userId;
+        messagesWith.textContent = `Messages with ${userName}`;
+        messageInputArea.style.display = 'block';
+        loadMessages(userId);
+        resetSearchResults();
     }
+
+function loadMessages(userId) {
+    if (isNaN(userId)) {
+        console.error("Некорректный формат userId.");
+        return;
+    }
+
+    fetch(`https://localhost:7224/Home/GetMessages/${userId}`) // Убедитесь, что это правильный путь
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(data);
+            if (data && data.length > 0) {
+                const sortedMessages = data.sort((a, b) => new Date(a.Timestamp) - new Date(b.Timestamp));
+                console.log(sortedMessages);
+                const messageHtml = sortedMessages.map(message => `
+                    <div class="message ${message.isCurrentUserSender ? 'message-sent' : 'message-received'}">
+                         ${message.text}     <sub>${message.timestamp}</sub>
+                    </div>`).join('');
+                    console.log(messageHtml);
+                messageArea.innerHTML = messageHtml;
+                messageArea.scrollTop = messageArea.scrollHeight;
+            } else {
+                messageArea.innerHTML = '<p>No messages found for this user.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching messages:', error);
+            if (error.message.includes("Failed to fetch")) {
+                messageArea.innerHTML = '<p>Unable to connect to the server. Please check your connection.</p>';
+            } else {
+                messageArea.innerHTML = '<p>Error loading messages. Please try again later.</p>';
+            }
+        });
+}
+
+
+    // Функция отправки сообщения
+    function sendMessage() {
+        const messageText = messageInput.value.trim();
+        if (!messageText) {
+            alert('Please enter a message.');
+            return;
+        }
+
+        fetch('/Home/SendMessage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ReceiverId: selectedUserId, Text: messageText })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Отображение отправленного сообщения в чате
+                const now = new Date();
+                // Получаем часы и минуты
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+
+                // Форматируем время
+                const formattedTime = `${hours}:${minutes}`;
+                const messageHtml = `
+                    <div class="message message-sent">
+                        ${messageText}     <sub>${formattedTime}</sub>
+                    </div>`;
+                messageArea.innerHTML += messageHtml;
+                messageArea.scrollTop = messageArea.scrollHeight; // Прокрутка к последнему сообщению
+                messageInput.value = ''; // Очищаем поле ввода сообщения
+            } else {
+                alert('Failed to send message.');
+            }
+        })
+        .catch(error => {
+            console.error('Error sending message:', error);
+            alert('Error sending message. Please try again later.');
+        });
+    }
+
+    // Функция сброса результатов поиска
+    function resetSearchResults() {
+        searchResults.innerHTML = '';
+        searchResults.style.display = 'none';
+        userSearchInput.value = '';
+    }
+
+    // Инициализация: сброс области сообщений при загрузке страницы
+    resetMessageArea();
+
+    function resetMessageArea() {
+        messageArea.innerHTML = '<p>Select a user to start chatting.</p>';
+        messageInputArea.style.display = 'none';
+    }
+});
 </script>
+
