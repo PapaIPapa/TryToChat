@@ -44,7 +44,12 @@ namespace AhuenniyChat.Controllers
                 .Join(_context.User, // Присоединяем таблицу пользователей
                     messageUserId => messageUserId, // ID из сообщений
                     user => user.Id, // ID пользователя
-                    (messageUserId, user) => user) // Выбираем объект пользователя
+                    (messageUserId, user) => user)
+                .Select(user => new User 
+                {
+                    Id = user.Id,
+                    UserName = user.UserName == currentUserName ? "Saved Messages" : user.UserName,
+                })
                 .ToListAsync();
 
             ViewBag.UsersWithMessages = usersWithMessages;

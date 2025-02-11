@@ -3,25 +3,44 @@
 }
 
 
-    <div class="row">
-        <div class="col-md-4 leftSide"> <!-- Изменено на col-md-4 -->
-            <h2>Search Users</h2>
-            <input type="text" id="userSearch" placeholder="Search users..." autocomplete="off">
-            <ul id="searchResults" style="display:none; list-style-type: none; padding: 0;"></ul>
+<div class="row">
+    <div class="col-md-4 leftSide">
+        <h2>Search Users</h2>
+        <input type="text" id="userSearch" placeholder="Search users..." autocomplete="off">
+        <ul id="searchResults" style="display:none; list-style-type: none; padding: 0;"></ul>
 
-            <h2>Users with Messages</h2>
-            <ul id="userList">
-                @if (ViewBag.UsersWithMessages != null)
+        <h2>Users with Messages</h2>
+        <ul id="userList">
+            @if (ViewBag.UsersWithMessages != null)
+            {
+                foreach (var user in ViewBag.UsersWithMessages)
                 {
-                    foreach (var user in ViewBag.UsersWithMessages)
-                    {
-                        <li data-userid="@user.Id" class="existing-user">@user.UserName</li>
-                    }
+                    <li data-userid="@user.Id" class="existing-user">@user.UserName</li>
                 }
-            </ul>
+            }
+        </ul>
+    </div>
+    <div class="col-md-8 rightSide">
+        <!-- Блок звонка -->
+        <div id="callInterface" style="display:none;">
+            <h1>Simple VoIP Client</h1>
+            <button id="hangupButton" class="btn btn-danger" disabled>Hang Up</button>
+            <br>
+            <video id="localVideo" autoplay muted></video>
+            <video id="remoteVideo" autoplay></video>
         </div>
-        <div class="col-md-8 rightSide"> <!-- Изменено на col-md-8 -->
-            <h2 id="messagesWith">Messages</h2>
+        
+        <!-- Блок мессенджера -->
+        <div id="messengerInterface">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="chatControls" style="display:none;">
+                    <button id="closeChatButton" class="btn btn-secondary">Close</button>
+                </div>
+                <h2 id="messagesWith">Messages</h2>
+                <div class="chatControls" style="display:none;">
+                    <button id="callButton" class="btn btn-primary">Call</button>
+                </div>
+            </div>
             <div id="messageArea">
                 <p>Select a user to start chatting.</p>
             </div>
@@ -30,12 +49,17 @@
                 <button id="sendMessageButton">Send</button>
             </div>
         </div>
+
+        
     </div>
+</div>
+
 
 
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -47,7 +71,63 @@ document.addEventListener('DOMContentLoaded', function () {
     const messageArea = document.getElementById('messageArea');
     const messagesWith = document.getElementById('messagesWith');
 
+
+    
+
+
     let selectedUserId = null;
+    let currentUserName = null;
+
+async function fetchUser() {
+    try {
+        const response = await fetch('/Home/GetUser');
+        
+        // Проверка статуса ответа
+        if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.statusText}`);
+        }
+        
+        const user = await response.json();
+        
+        // Проверка, что user и user.userName существуют
+        if (user && user.userName) {
+            currentUserName = user.userName; // Исправлено имя переменной
+            console.log(currentUserName);
+        } else {
+            throw new Error('User  data is not in the expected format');
+        }
+    } catch (error) {
+        console.error('Error fetching user data:', error);
+    }
+}
+
+
+
+    // Логика переключения между мессенджером и звонком
+    document.getElementById('callButton').addEventListener('click', function () {
+
+        const UserId = selectedUserId; // Получите ID выбранного пользователя
+        if (UserId) {
+            
+            document.getElementById('callInterface').style.display = 'block'; // Показываем интерфейс звонка
+            document.getElementById('hangupButton').disabled = false; // Активируем кнопку завершения звонка
+            document.getElementById('messengerInterface').style.display = 'none';
+        } else {
+            alert('Please select a user to call.');
+        }
+    });
+
+    document.getElementById('hangupButton').addEventListener('click', function () {
+        
+        // Скрываем интерфейс звонка
+        document.getElementById('callInterface').style.display = 'none';
+        // Показываем мессенджер
+        document.getElementById('messengerInterface').style.display = 'block';
+        // Завершаем звонок
+        document.getElementById('hangupButton').disabled = true;
+    });
+
+
 
 
 
@@ -58,6 +138,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Обработка входящих сообщений
 connection.on('ReceiveMessage', (senderName, text) => {
+    fetchUser();
+    // Проверяем, отправлено ли сообщение самим собой
+    if (senderName === currentUserName) {
+        return; // Если сообщение отправлено самим собой, выходим из функции
+    }
+
     console.log(`Received message from ${senderName}: ${text}`);
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -91,14 +177,10 @@ if (sendMessageButton) {
                 throw new Error('Network response was not ok');
             }
             const user = await response.json();
-            console.log(user);
             const currentUserName = user.userName;
 
             const receiverId = selectedUserId; // ID выбранного пользователя
             const senderName = currentUserName; // Имя текущего пользователя
-            console.log(receiverId);
-            console.log(senderName);
-            console.log(messageText);
             // Отправка сообщения через SignalR
             await connection.invoke("SendMessage", parseInt(receiverId), senderName, messageText)
                 .catch(err => console.error('Error sending message:', err));
@@ -181,14 +263,52 @@ if (sendMessageButton) {
     // Обработка клика по кнопке отправки сообщения
     sendMessageButton.addEventListener('click', sendMessage);
 
-    // Функция выбора пользователя
-    function selectUser(userId, userName) {
-        selectedUserId = userId;
-        messagesWith.textContent = `Messages with ${userName}`;
-        messageInputArea.style.display = 'flex';
-        loadMessages(userId);
-        resetSearchResults();
+ async function selectUser(userId, userName) {
+    selectedUserId = userId;
+    messagesWith.textContent = `${userName}`;
+    messageInputArea.style.display = 'flex';
+    loadMessages(userId);
+    resetSearchResults();
+
+    // Получаем все элементы управления в чате
+    const chatControls = document.querySelectorAll('.chatControls');
+
+    try {
+        const response = await fetch('/Home/GetUser');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const user = await response.json();
+        const currentUserId = user.id;
+
+        // Проверяем, совпадает ли выбранный пользователь с текущим пользователем
+        if (userId === currentUserId) {
+            // Если совпадает, показываем только кнопку Close
+            chatControls.forEach(control => {
+                control.style.display = 'block';
+            });
+            document.getElementById('callButton').style.display = 'none';
+        } else {
+            // Если не совпадает, показываем все кнопки
+            chatControls.forEach(control => {
+                control.style.display = 'block';
+            });
+            document.getElementById('callButton').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error fetching user data:', error);
     }
+}
+
+
+
+
+    // Обработка кнопки Close
+    document.getElementById('closeChatButton').addEventListener('click', function() {
+        resetMessageArea();
+    });
+
+
 
 function loadMessages(userId) {
     if (isNaN(userId)) {
@@ -247,27 +367,9 @@ function loadMessages(userId) {
             return response.json();
         })
         .then(data => {
-            if (data.success) {
-                console.log(data);
-
-                //// Отображение отправленного сообщения в чате
-                //const now = new Date();
-                //// Получаем часы и минуты
-                //const hours = String(now.getHours()).padStart(2, '0');
-                //const minutes = String(now.getMinutes()).padStart(2, '0');
-
-                //// Форматируем время
-                //const formattedTime = `${hours}:${minutes}`;
-                //const messageHtml = `
-                //    <div class="message message-sent">
-                //        ${messageText}     <sub>${formattedTime}</sub>
-                //    </div>`;
-                //messageArea.innerHTML += messageHtml;
-                //messageArea.scrollTop = messageArea.scrollHeight; // Прокрутка к последнему сообщению
-                //messageInput.value = ''; // Очищаем поле ввода сообщения
-            } else {
+            if (!data.success) {
                 alert('Failed to send message.');
-            }
+            } 
         })
         .catch(error => {
             console.error('Error sending message:', error);
@@ -289,6 +391,9 @@ function loadMessages(userId) {
     function resetMessageArea() {
         messageArea.innerHTML = '<p>Select a user to start chatting.</p>';
         messageInputArea.style.display = 'none';
+        document.querySelectorAll('.chatControls').forEach(control => {
+            control.style.display = 'none';
+        });
     }
 });
 </script>

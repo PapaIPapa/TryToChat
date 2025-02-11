@@ -1,49 +1,59 @@
+
+
 html {
-  font-size: 14px;
+    font-size: 14px;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+    html {
+        font-size: 16px;
+    }
 }
 
 html {
-  position: relative;
-  min-height: 100%;
+    position: relative;
+    min-height: 100%;
 }
 
-/* Общие стили */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f5f5f5;
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .container {
     max-width: 1200px;
-    margin: 0 auto;
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    padding: 20px;
+    flex: 1;
 }
 
 .row {
     display: flex;
+    flex: 1;
+    height: 100%;
 }
 
-.col-md-6 {
-    flex: 1;
+.col-md-4, .col-md-8 {
     padding: 20px;
 }
 
-    /* Левая часть (список пользователей) */
-    .col-md-6:first-child {
-        border-right: 1px solid #e0e0e0;
-    }
+.col-md-4 {
+    flex: 0 0 33.3333%;
+    background-color: #f8f9fa;
+    border-right: 1px solid #ddd;
+}
+
+.col-md-8 {
+    flex: 1;
+    background-color: #fff;
+}
 
 h2 {
     font-size: 18px;
@@ -67,6 +77,8 @@ h2 {
     border: 1px solid #ddd;
     border-radius: 4px;
     background-color: #fff;
+    height: calc(100vh - 250px);
+    overflow-y: auto;
 }
 
     #userList li {
@@ -80,34 +92,15 @@ h2 {
             background-color: #f9f9f9;
         }
 
-#existingUsers {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-    #existingUsers li {
-        padding: 10px;
-        cursor: pointer;
-        border-bottom: 1px solid #eee;
-        font-size: 14px;
-    }
-
-        #existingUsers li:hover {
-            background-color: #f9f9f9;
-        }
-
-/* Правая часть (чат) */
 #messageArea {
-    height: 400px;
+    height: calc(100vh - 250px);
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 4px;
     padding: 15px;
     background-color: #f9f9f9;
-    margin-bottom: 15px;
     display: flex;
-    flex-direction: column; /* Добавлено для вертикального выравнивания */
+    flex-direction: column;
 }
 
     #messageArea p {
@@ -123,12 +116,12 @@ h2 {
 #messageInputArea {
     display: flex;
     gap: 10px;
-    margin-top: auto; /* Позволяет отодвинуть область ввода вниз */
-    align-items: center; /* Выравниваем элементы по вертикали */
+    margin-top: auto;
+    align-items: center;
 }
 
 #messageInput {
-    flex: 1; /* Поле ввода занимает всё доступное пространство */
+    flex: 1;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -142,32 +135,12 @@ h2 {
     background-color: #007bff;
     color: white;
     cursor: pointer;
-    margin-left: auto; /* Прижимаем кнопку к правому краю */
-    white-space: nowrap; /* Текст кнопки не переносится */
+    margin-left: auto;
+    white-space: nowrap;
 }
 
     #sendMessageButton:hover {
         background-color: #0056b3;
-    }
-
-
-/* Стили для сообщений */
-.message {
-    margin-bottom: 10px;
-}
-
-    .message.sender {
-        text-align: right;
-    }
-
-        .message.sender p {
-            background-color: #007bff;
-            color: #fff;
-        }
-
-    .message.receiver p {
-        background-color: #e1f3fb;
-        color: #333;
     }
 
 .message {
@@ -180,11 +153,64 @@ h2 {
 
 .message-sent {
     background-color: #d1e7dd;
-    margin-left: auto; /* Выравниваем отправленные сообщения вправо */
+    margin-left: auto;
 }
 
 .message-received {
     background-color: #f8d7da;
-    margin-right: auto; /* Выравниваем полученные сообщения влево */
+    margin-right: auto;
 }
 
+/* Telegram-like styles */
+#messengerInterface {
+    background-color: #fff;
+    border-radius: 8px;
+}
+
+#messagesWith {
+    font-size: 20px;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+#messageArea {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+#messageInputArea {
+    background-color: #fff;
+    border-radius: 8px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+#messageInput {
+    border: none;
+    background-color: #f8f9fa;
+    border-radius: 20px;
+    padding: 10px 15px;
+}
+
+#sendMessageButton {
+    background-color: #007bff;
+    border-radius: 20px;
+    padding: 10px 20px;
+}
+
+    #sendMessageButton:hover {
+        background-color: #0056b3;
+    }
+
+.message-sent {
+    background-color: #007bff;
+    color: white;
+    border-radius: 15px 15px 0 15px;
+}
+
+.message-received {
+    background-color: #e1e1e1;
+    color: #333;
+    border-radius: 15px 15px 15px 0;
+}
