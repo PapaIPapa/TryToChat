@@ -23,12 +23,31 @@
     <div class="col-md-8 rightSide">
         <!-- Блок звонка -->
         <div id="callInterface" style="display:none;">
-            <h1>Simple VoIP Client</h1>
-            <button id="hangupButton" class="btn btn-danger" disabled>Hang Up</button>
-            <br>
-            <video id="localVideo" autoplay muted></video>
-            <video id="remoteVideo" autoplay></video>
+            <div id="callHeader">
+                <button id="toggleCallButton" class="btn btn-secondary">Свернуть</button>
+                <h1>Simple VoIP Client</h1>
+            </div>
+            <div id="callContent">
+                <button id="hangupButton" class="btn btn-danger" disabled>Hang Up</button>
+                <p id="statusMessage">Жди</p>
+                <br>
+                <div>
+                    <p>Исходящее аудио:</p>
+                    <div id="outgoingAudioIndicator" class="audio-indicator"></div>
+                </div>
+                <div>
+                    <p>Входящее аудио:</p>
+                    <div id="incomingAudioIndicator" class="audio-indicator"></div>
+                </div>
+                <audio id="localAudio" autoplay muted></audio>
+                <audio id="remoteAudio" autoplay></audio>
+                <video id="localVideo" autoplay muted></video>
+                <video id="remoteVideo" autoplay></video>
+            </div>
         </div>
+
+
+
         
         <!-- Блок мессенджера -->
         <div id="messengerInterface">
@@ -50,7 +69,18 @@
             </div>
         </div>
 
-        
+        <!-- Модальное окно для входящего звонка -->
+        <div id="incomingCallModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h3>Входящий звонок</h3>
+                <p>Вам звонит <span id="callerName"></span></p>
+                <div class="modal-buttons">
+                    <button id="acceptCallButton" class="btn btn-success">Ответить</button>
+                    <button id="rejectCallButton" class="btn btn-danger">Отклонить</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -59,7 +89,6 @@
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
-
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -71,12 +100,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const messageArea = document.getElementById('messageArea');
     const messagesWith = document.getElementById('messagesWith');
 
+    const connectionCall = new signalR.HubConnectionBuilder()
+    .withUrl("/callHub")
+    .withAutomaticReconnect()
+    .build();
 
+    const connection = new signalR.HubConnectionBuilder()
+    .withUrl('/chathub')
+    .withAutomaticReconnect()
+    .build();
     
 
 
     let selectedUserId = null;
-    let currentUserName = null;
+    let currentUser = null;
+    let inCallWithId = null;
 
 async function fetchUser() {
     try {
@@ -91,8 +129,8 @@ async function fetchUser() {
         
         // Проверка, что user и user.userName существуют
         if (user && user.userName) {
-            currentUserName = user.userName; // Исправлено имя переменной
-            console.log(currentUserName);
+            currentUser = user; // Исправлено имя переменной
+            console.log(currentUser);
         } else {
             throw new Error('User  data is not in the expected format');
         }
@@ -101,40 +139,479 @@ async function fetchUser() {
     }
 }
 
+fetchUser();
 
 
-    // Логика переключения между мессенджером и звонком
-    document.getElementById('callButton').addEventListener('click', function () {
+document.getElementById('toggleCallButton').addEventListener('click', function () {
+    const callInterface = document.getElementById('callInterface');
+    const callContent = document.getElementById('callContent');
+    const toggleButton = document.getElementById('toggleCallButton');
 
-        const UserId = selectedUserId; // Получите ID выбранного пользователя
-        if (UserId) {
-            
+    if (callInterface.classList.contains('collapsed')) {
+        // Разворачиваем блок
+        callInterface.classList.remove('collapsed');
+        toggleButton.textContent = 'Свернуть';
+    } else {
+        // Сворачиваем блок
+        callInterface.classList.add('collapsed');
+        toggleButton.textContent = 'Развернуть';
+    }
+});
+
+
+
+
+let localStream;
+let peerConnection;
+const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+// Элементы интерфейса
+const startCallButton = document.getElementById('callButton');
+const endCallButton = document.getElementById('hangupButton');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const statusMessage = document.getElementById('statusMessage');
+const incomingCallModal = document.getElementById('incomingCallModal');
+const callerName = document.getElementById('callerName');
+const acceptCallButton = document.getElementById('acceptCallButton');
+const rejectCallButton = document.getElementById('rejectCallButton');
+const localAudio = document.getElementById('localAudio');
+const remoteAudio = document.getElementById('remoteAudio');
+
+// Создаем AudioContext и AnalyserNode
+let audioContext;
+let outgoingAnalyser;
+let incomingAnalyser;
+
+
+
+let isCallActive = false; // Флаг для отслеживания состояния звонка
+
+
+// Обработчик нажатия кнопки "Call"
+startCallButton.addEventListener('click', async () => {
+    inCallWithId = selectedUserId;
+    // Создаем AudioContext только после нажатия кнопки
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        outgoingAnalyser = audioContext.createAnalyser();
+        incomingAnalyser = audioContext.createAnalyser();
+        // Настройка AnalyserNode
+        outgoingAnalyser.fftSize = 32;
+        incomingAnalyser.fftSize = 32;
+    }
+
+    // Восстанавливаем AudioContext, если он приостановлен
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
+
+    document.getElementById('callInterface').style.display = 'block';
+    document.getElementById('hangupButton').disabled = false;
+    document.getElementById('messengerInterface').style.display = 'none';
+
+    try {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('Local stream tracks:', localStream.getTracks()); // Проверка треков
+            if (localStream.getAudioTracks().length === 0) {
+                console.error('No audio tracks found in local stream.');
+                return;
+            }
+            localVideo.style.display = 'none'; // Скрываем видеоэлемент
+            connectAudioStream(localStream, outgoingAnalyser);
+        } catch (error) {
+            console.error('Ошибка при получении локального медиапотока:', error);
+            statusMessage.textContent = 'Ошибка при получении микрофона.';
+            return;
+        }
+
+
+        // Создание RTCPeerConnection
+        peerConnection = new RTCPeerConnection(configuration);
+        console.log('peerConnection created:', peerConnection);
+
+        
+
+        localStream.getTracks().forEach(track => {
+            console.log('Adding track:', track.kind); // Проверка типа трека
+            peerConnection.addTrack(track, localStream);
+        });
+
+
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                console.log('New ICE candidate:', event.candidate);
+                const candidateString = JSON.stringify(event.candidate);
+                connectionCall.invoke("SendIceCandidate", inCallWithId, candidateString)
+                    .catch(err => console.error('Error sending ICE candidate:', err));
+            } else {
+                console.log('All ICE candidates have been sent.');
+            }
+        };
+
+        // Обработка удаленного потока
+        peerConnection.ontrack = event => {
+            remoteStream = event.streams[0];
+            console.log('Remote stream tracks:', remoteStream.getTracks()); // Проверка треков
+            if (remoteStream.getAudioTracks().length === 0) {
+                console.error('No audio tracks found in remote stream.');
+                return;
+            }
+            remoteVideo.style.display = 'none'; // Скрываем видеоэлемент
+            remoteAudio.srcObject = remoteStream;
+
+            // Подключение анализатора к удаленному потоку
+            connectAudioStream(remoteStream, incomingAnalyser);
+
+            // Запуск обновления индикаторов
+            updateIndicators();
+        };
+
+
+
+        // Генерация SDP предложения
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+
+ 
+
+
+
+        // Отправка SDP предложения через SignalR
+        await connectionCall.invoke("SendOffer", inCallWithId, offer.sdp, parseInt(currentUser.id));
+        console.log('Sending offer to user:', inCallWithId);
+
+        statusMessage.textContent = 'Звонок начат. Ожидание ответа...';
+        startCallButton.disabled = true;
+        endCallButton.disabled = false;
+    } catch (error) {
+        console.error('Ошибка при инициализации звонка:', error);
+        statusMessage.textContent = 'Ошибка при инициализации звонка.';
+    }
+});
+
+
+// Функция для обновления индикатора
+function updateAudioIndicator(analyser, indicatorId) {
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+
+    // Вычисляем средний уровень громкости
+    const volume = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+
+    // Обновляем индикатор
+    const indicator = document.getElementById(indicatorId);
+    indicator.style.width = `${volume}%`;
+}
+
+// Подключение анализаторов к аудиопотокам
+function connectAudioStream(stream, analyser) {
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+}
+
+// Обновление индикаторов в реальном времени
+function updateIndicators() {
+    updateAudioIndicator(outgoingAnalyser, 'outgoingAudioIndicator');
+    updateAudioIndicator(incomingAnalyser, 'incomingAudioIndicator');
+    requestAnimationFrame(updateIndicators);
+}
+
+
+
+// Обработка получения ответа от пользователя, которому звонили
+connectionCall.on("ReceiveAnswer", async (answerSdp) => {
+
+    if (!peerConnection) {
+        console.error('peerConnection is not initialized.');
+        return;
+    }
+
+    try {
+        // Проверяем, что локальное описание (offer) уже установлено
+        if (!peerConnection.localDescription || peerConnection.localDescription.type !== 'offer') {
+            console.error('Локальное описание (offer) не установлено.');
+            return;
+        }
+
+        // Установка удаленного SDP ответа
+        try {
+            await peerConnection.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+        } catch (error) {
+            console.error('Ошибка при установке удаленного описания:', error);
+            statusMessage.textContent = 'Ошибка при установке соединения.';
+        }
+
+        console.log('Set remote description:', peerConnection.remoteDescription.sdp); 
+        console.log('Remote description set successfully.');
+
+
+        
+
+        peerConnection.onconnectionstatechange = () => {
+            console.log('Connection state:', peerConnection.connectionState);
+            if (peerConnection.connectionState === 'connected') {
+                console.log('Connection established successfully.');
+            }
+        }; 
+
+        // Обновление статуса звонка
+        statusMessage.textContent = 'Звонок установлен.';
+        startCallButton.disabled = true; // Отключаем кнопку "Call"
+        endCallButton.disabled = false; // Включаем кнопку "End Call"
+    } catch (error) {
+        console.error('Ошибка при установке удаленного описания:', error);
+        statusMessage.textContent = 'Ошибка при установке соединения.';
+    }
+});
+
+
+
+
+
+// Обработка входящего звонка
+connectionCall.on("ReceiveOffer", async (senderConnectionId, offer, currentUserId) => {
+    peerConnection = new RTCPeerConnection(configuration);
+    inCallWithId = currentUserId;
+    console.log(inCallWithId);
+    console.log('peerConnection created:', peerConnection);
+    try {
+        // Отображаем модальное окно для входящего звонка
+        incomingCallModal.style.display = 'block';
+        callerName.textContent = currentUserId; // Укажите имя или ID звонящего
+
+        // Обработчик нажатия кнопки "Ответить"
+        acceptCallButton.onclick = async () => {
+
+            // Создаем AudioContext только после нажатия кнопки
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                outgoingAnalyser = audioContext.createAnalyser();
+                incomingAnalyser = audioContext.createAnalyser();
+                // Настройка AnalyserNode
+                outgoingAnalyser.fftSize = 32;
+                incomingAnalyser.fftSize = 32;
+            }
+
+            // Восстанавливаем AudioContext, если он приостановлен
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('Local stream tracks:', localStream.getTracks()); // Проверка треков
+                if (localStream.getAudioTracks().length === 0) {
+                    console.error('No audio tracks found in local stream.');
+                    return;
+                }
+                localVideo.style.display = 'none'; // Скрываем видеоэлемент
+                connectAudioStream(localStream, outgoingAnalyser);
+            } catch (error) {
+                console.error('Ошибка при получении локального медиапотока:', error);
+                statusMessage.textContent = 'Ошибка при получении микрофона.';
+                return;
+            }
+
+
+            incomingCallModal.style.display = 'none'; // Скрываем модальное окно
             document.getElementById('callInterface').style.display = 'block'; // Показываем интерфейс звонка
             document.getElementById('hangupButton').disabled = false; // Активируем кнопку завершения звонка
             document.getElementById('messengerInterface').style.display = 'none';
-        } else {
-            alert('Please select a user to call.');
+
+
+            localStream.getTracks().forEach(track => {
+                console.log('Adding track:', track.kind); // Проверка типа трека
+                peerConnection.addTrack(track, localStream);
+            });
+
+
+            // Обработка удаленного потока
+            peerConnection.ontrack = event => {
+                remoteStream = event.streams[0];
+                console.log('Remote stream tracks:', remoteStream.getTracks()); // Проверка треков
+                if (remoteStream.getAudioTracks().length === 0) {
+                    console.error('No audio tracks found in remote stream.');
+                    return;
+                }
+                remoteVideo.style.display = 'none'; // Скрываем видеоэлемент
+                remoteAudio.srcObject = remoteStream;
+
+                // Подключение анализатора к удаленному потоку
+                connectAudioStream(remoteStream, incomingAnalyser);
+
+                // Запуск обновления индикаторов
+                updateIndicators();
+            };
+
+            // Установка удаленного SDP предложения
+            await peerConnection.setRemoteDescription({ type: 'offer', sdp: offer });
+
+            processPendingCandidates();
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+
+
+
+
+
+            // Отправка SDP ответа через SignalR
+            await connectionCall.invoke("SendAnswer", currentUserId, answer.sdp);
+            console.log('Sending answer to user:', currentUserId);
+
+             // Обработка ICE кандидатов
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    console.log('New ICE candidate:', event.candidate);
+                    const candidateString = JSON.stringify(event.candidate);
+                    connectionCall.invoke("SendIceCandidate", currentUserId, candidateString)
+                        .catch(err => console.error('Error sending ICE candidate:', err));
+                } else {
+                    console.log('All ICE candidates have been sent.');
+                }
+            };
+
+
+            peerConnection.onconnectionstatechange = () => {
+                console.log('Connection state:', peerConnection.connectionState);
+                if (peerConnection.connectionState === 'connected') {
+                    console.log('Connection established successfully.');
+                } else if (peerConnection.connectionState === 'failed') {
+                    console.error('Connection failed. Check ICE candidates, network, or server settings.');
+                }
+            };
+
+
+            statusMessage.textContent = 'Звонок принят.';
+            startCallButton.disabled = true;
+            endCallButton.disabled = false;
+        };
+
+        // Обработчик нажатия кнопки "Отклонить"
+        rejectCallButton.onclick = () => {
+            incomingCallModal.style.display = 'none'; // Скрываем модальное окно
+            isCallActive = false; // Сбрасываем флаг
+            // Здесь можно добавить код для уведомления звонящего об отклонении
+        };
+    } catch (error) {
+        console.error('Ошибка при обработке предложения:', error);
+        statusMessage.textContent = 'Ошибка при обработке предложения.';
+    }
+});
+
+const pendingCandidates = [];
+
+connectionCall.on("ReceiveIceCandidate", async (candidateString) => {
+    const candidate = JSON.parse(candidateString);
+
+    if (!peerConnection) {
+        console.error('peerConnection is not initialized.');
+        return;
+    }
+
+    if (peerConnection.remoteDescription) {
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log('ICE candidate added successfully.');
+        } catch (err) {
+            console.error('Error adding ICE candidate:', err);
         }
+    } else {
+        console.warn('Remote description is not set yet. Storing candidate.');
+        pendingCandidates.push(candidate);
+    }
+});
+
+// После установки remote description:
+async function processPendingCandidates() {
+    for (const candidate of pendingCandidates) {
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            console.log('Pending ICE candidate added successfully.');
+        } catch (err) {
+            console.error('Error adding pending ICE candidate:', err);
+        }
+    }
+    // Очищаем очередь
+    pendingCandidates.length = 0;
+}
+
+
+
+
+// Функция для завершения звонка (общая для обоих пользователей)
+function endCall() {
+    // Скрываем интерфейс звонка и возвращаем мессенджер
+    document.getElementById('callInterface').style.display = 'none';
+    document.getElementById('messengerInterface').style.display = 'block';
+    incomingCallModal.style.display = 'none';
+    statusMessage.textContent = 'Звонок завершен.';
+    
+    // Отключаем/сбрасываем кнопки
+    startCallButton.disabled = false;
+    endCallButton.disabled = true;
+    document.getElementById('hangupButton').disabled = true;
+
+    // Закрываем RTCPeerConnection
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    // Останавливаем локальный медиапоток
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    // Очищаем источники видео/аудио
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+}
+
+// Обработчик кнопки завершения звонка (отправляем сигнал и завершаем звонок локально)
+endCallButton.addEventListener('click', async () => {
+    // Отправляем сигнал завершения звонка удалённому пользователю через SignalR
+    try {
+        await connectionCall.invoke("HangUpCall", inCallWithId);
+        console.log('Hangup signal sent to', inCallWithId);
+    } catch (error) {
+        console.error('Error sending hangup signal:', error);
+    }
+    
+    // Завершаем звонок локально
+    endCall();
+});
+
+// Обработка получения сигнала завершения звонка от удалённого пользователя
+connectionCall.on("HangUpCall", () => {
+    console.log('Received hangup signal from remote user.');
+    endCall();
+});
+
+// Код для соединения SignalR
+connectionCall.start()
+    .then(() => {
+        console.log("Соединение SignalR установлено.");
+    })
+    .catch(err => {
+        console.error('Ошибка при подключении SignalR:', err);
     });
 
-    document.getElementById('hangupButton').addEventListener('click', function () {
-        
-        // Скрываем интерфейс звонка
-        document.getElementById('callInterface').style.display = 'none';
-        // Показываем мессенджер
-        document.getElementById('messengerInterface').style.display = 'block';
-        // Завершаем звонок
-        document.getElementById('hangupButton').disabled = true;
-    });
 
 
 
 
 
-    const connection = new signalR.HubConnectionBuilder()
-    .withUrl('/chathub')
-    .withAutomaticReconnect()
-    .build();
+
+
+
+
 
 // Обработка входящих сообщений
 connection.on('ReceiveMessage', (senderName, text) => {

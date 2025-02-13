@@ -214,3 +214,79 @@ h2 {
     color: #333;
     border-radius: 15px 15px 15px 0;
 }
+
+
+/* Стили для модального окна */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.modal-buttons {
+    margin-top: 20px;
+}
+
+    .modal-buttons button {
+        margin: 0 10px;
+    }
+
+
+
+.audio-indicator {
+    width: 100%;
+    height: 20px;
+    background-color: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+    .audio-indicator::after {
+        content: '';
+        display: block;
+        height: 100%;
+        background-color: #4CAF50;
+        width: 0;
+        transition: width 0.1s ease;
+    }
+
+
+#callInterface {
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #f9f9f9;
+    position: relative;
+}
+
+#callHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+#callContent {
+    transition: height 0.3s ease;
+    overflow: hidden;
+}
+
+.collapsed #callContent {
+    height: 0;
+    padding: 0;
+    margin: 0;
+}

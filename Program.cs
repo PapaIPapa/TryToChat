@@ -53,6 +53,9 @@ app.MapControllers(); // Reordered
 
 
 app.MapHub<ChatHub>("/chatHub");
+app.MapHub<CallHub>("/callHub");
+
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Auth}/{action=Register}/{id?}");

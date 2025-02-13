@@ -5,20 +5,46 @@ namespace AhuenniyChat.Hubs
 {
     public class CallHub : Hub
     {
-        public async Task SendSignal(string to, string signal)
+        // Отправка SDP предложения выбранному пользователю
+        public async Task SendOffer(int targetUserId, string offer, int currentUserId)
         {
-            // Проверяем, существует ли клиент с указанным идентификатором
-            if (Clients.Client(to) != null)
+            Console.WriteLine(currentUserId + " отправил запрос к " + targetUserId);
+            var userId = Convert.ToString(targetUserId);
+            await Clients.User(userId).SendAsync("ReceiveOffer", targetUserId, offer, currentUserId);
+        }
+
+        // Отправка SDP ответа выбранному пользователю
+        public async Task SendAnswer(int targetUserId, string answer)
+        {
+            Console.WriteLine( "Тот самый  отправил ответ к " + targetUserId);
+            var userId = Convert.ToString(targetUserId);
+            await Clients.User(userId).SendAsync("ReceiveAnswer", answer);
+        }
+
+        // Отправка ICE кандидата выбранному пользователю
+        public async Task SendIceCandidate(int targetUserId, string candidate)
+        {
+            try
             {
-                // Отправляем сигнал только если клиент существует
-                await Clients.Client(to).SendAsync("ReceiveSignal", Context.ConnectionId, signal);
+                Console.WriteLine( " отправил кандидата к " + targetUserId);
+                var userId = Convert.ToString(targetUserId);
+                await Clients.User(userId).SendAsync("ReceiveIceCandidate", candidate);
             }
-            else
+            catch (Exception ex)
             {
-                // Логируем или обрабатываем случай, когда клиент не найден
-                // Например, можно отправить сообщение об ошибке вызывающему клиенту
-                await Clients.Caller.SendAsync("Error", "Recipient not found");
+                // Логируем ошибку
+                Console.WriteLine($"Error sending ICE candidate: {ex.Message}");
+                throw; // Перебрасываем исключение, чтобы клиент получил сообщение об ошибке
             }
         }
+
+        public async Task HangUpCall(int targetUserId)
+        {
+            Console.WriteLine("Тот самый  отправил завершение к " + targetUserId);
+            var userId = Convert.ToString(targetUserId);
+            await Clients.User(userId).SendAsync("HangUpCall");
+        }
+
     }
+
 }
