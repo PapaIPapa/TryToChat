@@ -105,10 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
     .withAutomaticReconnect()
     .build();
 
-    const connection = new signalR.HubConnectionBuilder()
-    .withUrl('/chathub')
-    .withAutomaticReconnect()
-    .build();
     
 
 
@@ -151,10 +147,12 @@ document.getElementById('toggleCallButton').addEventListener('click', function (
         // Разворачиваем блок
         callInterface.classList.remove('collapsed');
         toggleButton.textContent = 'Свернуть';
+        document.getElementById('messengerInterface').style.display = 'none';
     } else {
         // Сворачиваем блок
         callInterface.classList.add('collapsed');
         toggleButton.textContent = 'Развернуть';
+        document.getElementById('messengerInterface').style.display = 'block';
     }
 });
 
@@ -609,6 +607,11 @@ connectionCall.start()
 
 
 
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl('/chathub')
+    .withAutomaticReconnect()
+    .build();
+
 
 
 
@@ -617,7 +620,7 @@ connectionCall.start()
 connection.on('ReceiveMessage', (senderName, text) => {
     fetchUser();
     // Проверяем, отправлено ли сообщение самим собой
-    if (senderName === currentUserName) {
+    if (senderName === currentUser.userName) {
         return; // Если сообщение отправлено самим собой, выходим из функции
     }
 
@@ -643,6 +646,7 @@ connection.start()
 if (sendMessageButton) {
     sendMessageButton.addEventListener('click', async () => {
         const messageText = document.getElementById('messageInput').value.trim();
+        console.log(messageText);
         if (!messageText) {
             alert('Please enter a message.');
             return;
@@ -662,6 +666,8 @@ if (sendMessageButton) {
             await connection.invoke("SendMessage", parseInt(receiverId), senderName, messageText)
                 .catch(err => console.error('Error sending message:', err));
 
+            sendMessage();
+
             // Очистка поля ввода
             document.getElementById('messageInput').value = '';
 
@@ -677,6 +683,7 @@ if (sendMessageButton) {
                 </div>`;
             document.getElementById('messageArea').innerHTML += messageHtml;
             document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
+
         } catch (error) {
             console.error('Error:', error);
             alert('Error sending message. Please try again later.');
@@ -737,8 +744,7 @@ if (sendMessageButton) {
         });
     });
 
-    // Обработка клика по кнопке отправки сообщения
-    sendMessageButton.addEventListener('click', sendMessage);
+
 
  async function selectUser(userId, userName) {
     selectedUserId = userId;
