@@ -110,6 +110,29 @@ namespace AhuenniyChat.Controllers
         }
 
 
+        [HttpGet("GetUsers/{groupId}")]
+        public async Task<IActionResult> GetUsers(int groupId)
+        {
+            var group = await _context.Group
+                .Include(g => g.Users)
+                .FirstOrDefaultAsync(g => g.Id == groupId);
+
+            if (group == null)
+            {
+                return NotFound($"Group with ID {groupId} not found.");
+            }
+
+            // Проекция на анонимный объект или DTO
+            var userList = group.Users.Select(user => new
+            {
+                user.Id,
+                user.UserName // или другие свойства, которые вам нужны
+            }).ToList();
+
+            return Ok(userList);
+        }
+
+
 
 
 
@@ -224,17 +247,6 @@ namespace AhuenniyChat.Controllers
 
                 _context.Message.Add(message);
                 await _context.SaveChangesAsync();
-
-                // Отправляем сообщение всем участникам группы
-                await _hubContext.Clients.Group(groupId.ToString()).SendAsync("ReceiveMessage", new
-                {
-                    Id = message.Id,
-                    Text = message.Text,
-                    Timestamp = message.Timestamp.ToShortTimeString(),
-                    SenderId = message.SenderId,
-                    GroupId = message.GroupId,
-                    IsCurrentUserSender = message.SenderId == currentUser.Id
-                });
 
 
                 return Ok(new { success = true, message = "Message sent successfully." });

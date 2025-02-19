@@ -256,7 +256,6 @@ async function fetchUser() {
         // Проверка, что user и user.userName существуют
         if (user && user.userName) {
             currentUser = user; 
-            console.log(currentUser);
         } else {
             throw new Error('User  data is not in the expected format');
         }
@@ -744,36 +743,67 @@ const connection = new signalR.HubConnectionBuilder()
 
 
 // Обработка входящих сообщений
-connection.on('ReceiveMessage', (senderName, text) => {
+connection.on('ReceiveMessage', (senderId, text) => {
+    fetchUser();
+    // Проверяем, отправлено ли сообщение самим собой
+    if (senderId === currentUser.id) {
+        return; // Если сообщение отправлено самим собой, выходим из функции
+    }
+    if (senderId === selectedUserId) {
+        console.log(`Received message from ${senderId}: ${text}`);
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const formattedTime = `${hours}:${minutes}`;
+        const messageHtml = `
+            <div class="message message-received">
+                 ${text} <sub>${formattedTime}</sub>
+            </div>`;
+        document.getElementById('messageArea').innerHTML += messageHtml;
+        document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
+    }
+
+    
+});
+
+
+// Обработка входящих сообщений
+connection.on('ReceiveMessageFromGroup', (groupName, senderName, text) => { 
+    console.log(`Received message from ${senderName}: ${text}`);
     fetchUser();
     // Проверяем, отправлено ли сообщение самим собой
     if (senderName === currentUser.userName) {
         return; // Если сообщение отправлено самим собой, выходим из функции
     }
-
-    console.log(`Received message from ${senderName}: ${text}`);
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const formattedTime = `${hours}:${minutes}`;
-    const messageHtml = `
-        <div class="message message-received">
-             ${text} <sub>${formattedTime}</sub>
-        </div>`;
-    document.getElementById('messageArea').innerHTML += messageHtml;
-    document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
+    console.log(messagesWith.textContent);
+    if (groupName == messagesWith.textContent) {
+        console.log(`Received message from ${senderName}: ${text}`);
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const formattedTime = `${hours}:${minutes}`;
+        const messageHtml = `
+            <div class="message message-received">
+                 <b>${senderName}</b> <br>
+                 ${text} <sub>${formattedTime}</sub>
+            </div>`;
+        document.getElementById('messageArea').innerHTML += messageHtml;
+        document.getElementById('messageArea').scrollTop = document.getElementById('messageArea').scrollHeight;
+    }    
 });
+
+
 
 // Запуск соединения
 connection.start()
-    .then(() => console.log('SignalR connection established.'))
+    .then(() => console.log('SignalR connection established.11111'))
     .catch(err => console.error('SignalR connection error:', err));
 
 // Отправка сообщения
 if (sendMessageButton) {
     sendMessageButton.addEventListener('click', async () => {
         const messageText = document.getElementById('messageInput').value.trim();
-        console.log(messageText);
+
         if (!messageText) {
             alert('Please enter a message.');
             return;
@@ -785,25 +815,39 @@ if (sendMessageButton) {
                 throw new Error('Network response was not ok');
             }
             const user = await response.json();
+            const currentUserId = user.id;
             const currentUserName = user.userName;
 
             const receiverId = selectedUserId; // ID выбранного пользователя
-            const senderName = currentUserName; // Имя текущего пользователя
+            const senderId = currentUserId; // Имя текущего пользователя
+            const senderName = currentUserName;
+
             console.log(selectedType);
 
             if (selectedType == 'user') {
 
                 // Отправка сообщения через SignalR
-                await connection.invoke("SendMessage", parseInt(receiverId), senderName, messageText)
+                await connection.invoke("SendMessage", parseInt(receiverId), senderId, messageText)
                     .catch(err => console.error('Error sending message:', err));
 
                 sendMessage();
-            } else if (selectedType == 'group')
-            {
-                await connection.invoke("SendMessageToGroup", messagesWith.textContent, senderName, messageText)
-                    .catch(err => console.error('Error sending message:', err));
+            } else if (selectedType === 'group') {
+                try {
+                    // Получаем список пользователей в группе
+                    const users = await getUsers(selectedGroupId);
 
-                sendMessageToGroup();
+                    // Отправляем сообщение каждому пользователю в группе
+                    for (const groupUser of users) {
+                        console.log(typeof groupUser.id);
+                        await connection.invoke("SendMessageToGroup", parseInt(groupUser.id), messagesWith.textContent, senderName, messageText)
+                            .catch(err => console.error('Error sending message:', err));
+                    }
+
+                    // Если нужно вызвать отдельную функцию для отправки сообщения группе
+                    sendMessageToGroup();
+                } catch (error) {
+                    console.error('Ошибка при получении списка пользователей или отправке сообщений:', error);
+                }
             }
                 
 
@@ -829,6 +873,35 @@ if (sendMessageButton) {
         }
     });
 }
+
+
+
+
+async function getUsers(groupId) {
+    try {
+        const response = await fetch(`/Group/GetUsers/${groupId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Проверка на успешный ответ
+        if (!response.ok) {
+            throw new Error(`Ошибка: ${response.status} ${response.statusText}`);
+        }
+
+        const users = await response.json(); // Парсим JSON-ответ
+
+        // Выводим список пользователей в консоль или делаем что-то с ним
+        console.log(users);
+        return users; // Возвращаем список пользователей
+    } catch (error) {
+        console.error('Ошибка при получении списка пользователей:', error);
+    }
+}
+
+
 
 
 // Обработка ввода в поле поиска
@@ -868,8 +941,6 @@ document.getElementById('addUserButton').addEventListener('click', async functio
     const selectedUsers = Array.from(document.querySelectorAll('.userCheckbox:checked'))
         .map(checkbox => checkbox.dataset.userid);
 
-    console.log(selectedUsers);
-    console.log(groupId);
     if (selectedUsers.length === 0) {
         alert('Пожалуйста, выберите хотя бы одного пользователя.');
         return;
@@ -878,8 +949,7 @@ document.getElementById('addUserButton').addEventListener('click', async functio
     // Асинхронная функция для отправки одного пользователя
     const addUserToGroup = async (userId) => {
         try {
-            console.log(userId);
-            console.log(groupId);
+
             const response = await fetch('/Group/AddUserToGroup', {
                 method: 'POST',
                 headers: {
@@ -962,7 +1032,6 @@ document.getElementById('addUserButton').addEventListener('click', async functio
             if (!isNaN(userId)) {
                 selectUser(userId, this.textContent);
                 selectedType = 'user';
-                console.log(currentType);
             } else {
                 console.error("Некорректный формат userId.");
             }
@@ -979,7 +1048,6 @@ document.querySelectorAll('.existing-group').forEach(item => {
         if (!isNaN(groupId)) {
             selectGroup(groupId, this.textContent);
             selectedType = 'group';
-            console.log(currentType);
         } else {
             console.error("Некорректный формат groupId.");
         }
@@ -990,6 +1058,7 @@ document.querySelectorAll('.existing-group').forEach(item => {
 
 async function selectUser(userId, userName) {
     selectedUserId = userId;
+    selectedGroupId = null;
     messagesWith.textContent = `${userName}`;
     messageInputArea.style.display = 'flex';
     loadMessages(userId);
@@ -1029,7 +1098,10 @@ async function selectUser(userId, userName) {
 
 async function selectGroup(groupId, groupName) {
     selectedGroupId = groupId;
-    //connection.invoke("JoinGroup", selectedGroupId);
+    selectedUserId = null;
+    //connection.invoke("JoinGroup", currentUser.id, groupName)
+    //    .then(() => console.log(`Joined group: ${groupName}`))
+    //    .catch(err => console.error(err));
     messagesWith.textContent = `${groupName}`;
     messageInputArea.style.display = 'flex';
     loadMessagesFromGroup(groupId);
@@ -1133,7 +1205,6 @@ function sendMessageToGroup() {
     }
 
     const groupId = selectedGroupId; // Убедитесь, что selectedGroupId установлен
-    console.log(groupId);
 
     fetch('/Group/SendMessage', {
         method: 'POST',

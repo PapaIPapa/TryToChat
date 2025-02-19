@@ -18,12 +18,18 @@ namespace AhuenniyChat.Hubs
         }
 
 
-        public async Task SendMessage(int receiverId, string senderName, string messageText)
+        public async Task SendMessage(int receiverId, int senderId, string messageText)
         {
             try
             {
+
+                if (senderId != null)
+                {
+                    Console.WriteLine($"Отправитель: {senderId}, Получатель: {receiverId}");
+                }
+
                 // Отправка сообщения конкретному пользователю
-                await Clients.User(receiverId.ToString()).SendAsync("ReceiveMessage", senderName, messageText);
+                await Clients.User(receiverId.ToString()).SendAsync("ReceiveMessage", senderId, messageText);
             }
             catch (Exception ex) 
             {
@@ -31,21 +37,40 @@ namespace AhuenniyChat.Hubs
             }
         }
 
-        public async Task SendMessageToGroup(string groupName, string senderName, string message)
+        public async Task SendMessageToGroup(int receiverId, string groupName, string senderName, string message)
         {
-            await Clients.Group(groupName).SendAsync("ReceiveMessage", senderName, message);
+
+            try
+            {
+
+                Console.WriteLine($"{senderName} отправил");
+                await Clients.User(receiverId.ToString()).SendAsync("ReceiveMessageFromGroup", groupName, senderName, message);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+
+            
         }
 
-        public async Task JoinGroup(string groupName)
+        public async Task JoinGroup(int userId, string groupName)
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-            await Clients.Group(groupName).SendAsync("ReceiveMessage", "System", $"{Context.ConnectionId} has joined the group.");
+            try {
+                await Groups.AddToGroupAsync(userId.ToString(), groupName);
+                Console.WriteLine($"{userId} has joined the group {groupName}.");
+                await Clients.Group(groupName).SendAsync("ReceiveMessage", "System", $"{userId} has joined the group.");
+            }
+            catch (Exception ex) {
+                throw new Exception(ex.Message);
+            }
+            
         }
 
-        public async Task LeaveGroup(string groupName)
+        public async Task LeaveGroup(int userId, string groupName)
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-            await Clients.Group(groupName).SendAsync("ReceiveMessage", "System", $"{Context.ConnectionId} has left the group.");
+            await Groups.RemoveFromGroupAsync(userId.ToString(), groupName);
+            await Clients.Group(groupName).SendAsync("ReceiveMessage", "System", $"{userId} has left the group.");
         }
     }
 
