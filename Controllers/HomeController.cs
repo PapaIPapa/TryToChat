@@ -52,6 +52,18 @@ namespace AhuenniyChat.Controllers
                 })
                 .ToListAsync();
 
+            // Получаем список групп, в которых состоит пользователь
+            var groupsWithUser = await _context.Group
+                .Where(g => g.Users.Any(u => u.Id == currentUser.Id)) // Фильтруем группы, где есть текущий пользователь
+                .Select(g => new Group
+                {
+                    Id = g.Id,
+                    Name = g.Name,
+                })
+                .ToListAsync();
+
+            // Передаем данные в представление
+            ViewBag.GroupsWithUser = groupsWithUser;
             ViewBag.UsersWithMessages = usersWithMessages;
             ViewBag.Users = await _context.User.ToListAsync();
 
@@ -78,6 +90,19 @@ namespace AhuenniyChat.Controllers
 
             return Json(currentUser);
         }
+
+
+        [HttpGet("GetUserName/{userId}")]
+        public async Task<IActionResult> GetUserName(int userId)
+        {
+            var user = await _context.User.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+            return Json(new { userName = user.UserName }); // Возвращаем имя пользователя
+        }
+
 
 
         [HttpGet("GetMessages/{userId}")]

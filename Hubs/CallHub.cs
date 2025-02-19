@@ -6,11 +6,10 @@ namespace AhuenniyChat.Hubs
     public class CallHub : Hub
     {
         // Отправка SDP предложения выбранному пользователю
-        public async Task SendOffer(int targetUserId, string offer, int currentUserId)
+        public async Task SendOffer(int targetUserId, string offer, object currentUser)
         {
-            Console.WriteLine(currentUserId + " отправил запрос к " + targetUserId);
             var userId = Convert.ToString(targetUserId);
-            await Clients.User(userId).SendAsync("ReceiveOffer", targetUserId, offer, currentUserId);
+            await Clients.User(userId).SendAsync("ReceiveOffer", targetUserId, offer, currentUser);
         }
 
         // Отправка SDP ответа выбранному пользователю

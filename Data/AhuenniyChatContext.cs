@@ -18,6 +18,8 @@ namespace AhuenniyChat.Data
         public DbSet<AhuenniyChat.Models.User> User { get; set; } = default!;
         public DbSet<AhuenniyChat.Models.Message> Message { get; set; } = default!;
 
+        public DbSet<AhuenniyChat.Models.Group> Group { get; set; } = default!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Message>()
@@ -31,6 +33,13 @@ namespace AhuenniyChat.Data
                 .WithMany()
                 .HasForeignKey(m => m.ReceiverId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Group>()
+                .HasMany(g => g.Users)
+                .WithMany(u => u.Groups)
+                .UsingEntity(j => j.ToTable("UserGroups"));
+
+
         }
     }
 }

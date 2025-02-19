@@ -4,6 +4,7 @@ using AhuenniyChat.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AhuenniyChat.Migrations
 {
     [DbContext(typeof(AhuenniyChatContext))]
-    partial class AhuenniyChatContextModelSnapshot : ModelSnapshot
+    [Migration("20250217220221_AddGroups")]
+    partial class AddGroups
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,10 +49,7 @@ namespace AhuenniyChat.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<int?>("GroupId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ReceiverId")
+                    b.Property<int>("ReceiverId")
                         .HasColumnType("int");
 
                     b.Property<int>("SenderId")
@@ -64,8 +63,6 @@ namespace AhuenniyChat.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("GroupId");
 
                     b.HasIndex("ReceiverId");
 
@@ -120,22 +117,17 @@ namespace AhuenniyChat.Migrations
 
             modelBuilder.Entity("AhuenniyChat.Models.Message", b =>
                 {
-                    b.HasOne("AhuenniyChat.Models.Group", "Group")
-                        .WithMany()
-                        .HasForeignKey("GroupId");
-
                     b.HasOne("AhuenniyChat.Models.User", "Recipient")
                         .WithMany()
                         .HasForeignKey("ReceiverId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("AhuenniyChat.Models.User", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Group");
 
                     b.Navigation("Recipient");
 

@@ -1,5 +1,5 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Chats";
 }
 
 
@@ -9,16 +9,58 @@
         <input type="text" id="userSearch" placeholder="Search users..." autocomplete="off">
         <ul id="searchResults" style="display:none; list-style-type: none; padding: 0;"></ul>
 
-        <h2>Users with Messages</h2>
-        <ul id="userList">
-            @if (ViewBag.UsersWithMessages != null)
-            {
-                foreach (var user in ViewBag.UsersWithMessages)
-                {
-                    <li data-userid="@user.Id" class="existing-user">@user.UserName</li>
-                }
-            }
-        </ul>
+        
+
+
+        <div class="tab">
+            <div class="tab-content" id="content-1">
+                <ul id="userList">
+                    @if (ViewBag.UsersWithMessages != null)
+                    {
+                        foreach (var user in ViewBag.UsersWithMessages)
+                        {
+                            <li data-userid="@user.Id" class="existing-user">@user.UserName</li>
+                        }
+                    }
+                </ul>
+            </div>
+            <div class="tab-content" id="content-2">    
+                <ul id="groupList">
+
+                        <button id="addGroupButton" class="btn btn-secondary">Add Group</button>
+
+                    @if (ViewBag.GroupsWithUser != null)
+                    {
+                        foreach (var group in ViewBag.GroupsWithUser)
+                        {
+                            <li data-groupid="@group.Id" class="existing-group">@group.Name</li>
+                        }
+                    }
+                    else
+                    {
+                        <h5>Пока нет групп, попробуйте создать</h5>
+                    }
+                </ul>
+            </div>
+
+            <!-- Модальное окно для добавления группы -->
+            <div id="addGroupModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <h2>Создать новую группу</h2>
+                    <input type="text" id="groupNameInput" placeholder="Введите название группы" />
+                    <button id="createGroupButton" class="btn btn-primary">Создать</button>
+                </div>
+            </div>
+
+            <div class="tab-nav">
+                <input checked id="tab-btn-1" name="tab-btn" type="radio" value="">
+                <label for="tab-btn-1">Users</label>
+                <input id="tab-btn-2" name="tab-btn" type="radio" value="">
+                <label for="tab-btn-2">Groups</label>
+            </div>
+        </div>
+
     </div>
     <div class="col-md-8 rightSide">
         <!-- Блок звонка -->
@@ -46,7 +88,15 @@
             </div>
         </div>
 
-
+        <div id="addUserModal" class="modal" style="display:none;">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <h2>Добавить пользователя</h2>
+                    <input type="text" id="userGroupSearch" placeholder="Search users..." autocomplete="off">
+                    <ul id="searchGroupResults" style="display:none; list-style-type: none; padding: 0;"></ul>
+                    <button id="addUserButton" class="btn btn-primary">Создать</button>
+                </div>
+        </div>
 
         
         <!-- Блок мессенджера -->
@@ -57,6 +107,7 @@
                 </div>
                 <h2 id="messagesWith">Messages</h2>
                 <div class="chatControls" style="display:none;">
+                    <button id="addToGroup" class="btn btn-primary" style="display:none;">Add User</button>
                     <button id="callButton" class="btn btn-primary">Call</button>
                 </div>
             </div>
@@ -105,12 +156,91 @@ document.addEventListener('DOMContentLoaded', function () {
     .withAutomaticReconnect()
     .build();
 
+
+    // Получаем элементы модального окна и кнопки
+    const modal = document.getElementById("addGroupModal");
+    const addGroupButton = document.getElementById("addGroupButton");
+    const closeButton = document.getElementsByClassName("close-button");
+    const createGroupButton = document.getElementById("createGroupButton");
+    const groupNameInput = document.getElementById("groupNameInput");
+
+    // Получаем элементы модального окна и кнопки
+    const modalUser = document.getElementById("addUserModal");
+    const addToGroup = document.getElementById("addToGroup");
+    const addUserButton = document.getElementById("addUserButton");
+    const userGroupSearch = document.getElementById("userGroupSearch");
+
+
+    addToGroup.onclick = function() 
+    {
+        modalUser.style.display = "block";
+    }
+
+
+    // Открытие модального окна при нажатии на кнопку "Add Group"
+addGroupButton.onclick = function() {
+    modal.style.display = "block";
+}
+
+// Закрытие модального окна при нажатии на "x"
+closeButton.onclick = function() {
+    modal.style.display = "none";
+    modalUser.style.display = "none";
+}
+
+// Закрытие модального окна при нажатии вне его
+window.onclick = function(event) {
+    if (event.target == modal || event.target == modalUser) {
+        modal.style.display = "none";
+        modalUser.style.display = "none";
+    }
+}
+
+
+// Обработка создания группы
+createGroupButton.onclick = async function() {
+    const groupName = groupNameInput.value;
+    var userId = currentUser.id;
+    console.log(userId);
+    if (groupName) {
+        try {
+            // Отправка данных на сервер
+            const response = await fetch('/Group/CreateGroup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ groupName: groupName, userId: userId }),
+            });
+
+            if (response.ok) {
+                // Если группа успешно создана, закрываем модальное окно и обновляем страницу
+                modal.style.display = "none";
+                groupNameInput.value = "";
+                window.location.reload(); // Обновляем страницу для отображения новой группы
+            } else {
+                // Обработка ошибок
+                const errorData = await response.json();
+                alert(`Ошибка: ${errorData}`);
+            }
+        } catch (error) {
+            console.error('Ошибка при создании группы:', error);
+            alert('Произошла ошибка при создании группы.');
+        }
+    } else {
+        alert("Пожалуйста, введите название группы.");
+    }
+}
+
+
     
 
 
     let selectedUserId = null;
     let currentUser = null;
+    let selectedGroupId = null;
     let inCallWithId = null;
+    let selectedType = null;
 
 async function fetchUser() {
     try {
@@ -125,7 +255,7 @@ async function fetchUser() {
         
         // Проверка, что user и user.userName существуют
         if (user && user.userName) {
-            currentUser = user; // Исправлено имя переменной
+            currentUser = user; 
             console.log(currentUser);
         } else {
             throw new Error('User  data is not in the expected format');
@@ -175,6 +305,7 @@ const acceptCallButton = document.getElementById('acceptCallButton');
 const rejectCallButton = document.getElementById('rejectCallButton');
 const localAudio = document.getElementById('localAudio');
 const remoteAudio = document.getElementById('remoteAudio');
+
 
 // Создаем AudioContext и AnalyserNode
 let audioContext;
@@ -278,7 +409,7 @@ startCallButton.addEventListener('click', async () => {
 
 
         // Отправка SDP предложения через SignalR
-        await connectionCall.invoke("SendOffer", inCallWithId, offer.sdp, parseInt(currentUser.id));
+        await connectionCall.invoke("SendOffer", inCallWithId, offer.sdp, currentUser);
         console.log('Sending offer to user:', inCallWithId);
 
         statusMessage.textContent = 'Звонок начат. Ожидание ответа...';
@@ -370,15 +501,15 @@ connectionCall.on("ReceiveAnswer", async (answerSdp) => {
 
 
 // Обработка входящего звонка
-connectionCall.on("ReceiveOffer", async (senderConnectionId, offer, currentUserId) => {
+connectionCall.on("ReceiveOffer", async (senderConnectionId, offer, currentUser) => {
     peerConnection = new RTCPeerConnection(configuration);
-    inCallWithId = currentUserId;
+    inCallWithId = currentUser.id;
     console.log(inCallWithId);
     console.log('peerConnection created:', peerConnection);
     try {
         // Отображаем модальное окно для входящего звонка
         incomingCallModal.style.display = 'block';
-        callerName.textContent = currentUserId; // Укажите имя или ID звонящего
+        callerName.textContent = currentUser.userName; // Укажите имя или ID звонящего
 
         // Обработчик нажатия кнопки "Ответить"
         acceptCallButton.onclick = async () => {
@@ -454,20 +585,16 @@ connectionCall.on("ReceiveOffer", async (senderConnectionId, offer, currentUserI
             await peerConnection.setLocalDescription(answer);
 
 
-
-
-
-
             // Отправка SDP ответа через SignalR
-            await connectionCall.invoke("SendAnswer", currentUserId, answer.sdp);
-            console.log('Sending answer to user:', currentUserId);
+            await connectionCall.invoke("SendAnswer", currentUser.id, answer.sdp);
+            console.log('Sending answer to user:', currentUser.id);
 
              // Обработка ICE кандидатов
             peerConnection.onicecandidate = event => {
                 if (event.candidate) {
                     console.log('New ICE candidate:', event.candidate);
                     const candidateString = JSON.stringify(event.candidate);
-                    connectionCall.invoke("SendIceCandidate", currentUserId, candidateString)
+                    connectionCall.invoke("SendIceCandidate", currentUser.id, candidateString)
                         .catch(err => console.error('Error sending ICE candidate:', err));
                 } else {
                     console.log('All ICE candidates have been sent.');
@@ -662,11 +789,23 @@ if (sendMessageButton) {
 
             const receiverId = selectedUserId; // ID выбранного пользователя
             const senderName = currentUserName; // Имя текущего пользователя
-            // Отправка сообщения через SignalR
-            await connection.invoke("SendMessage", parseInt(receiverId), senderName, messageText)
-                .catch(err => console.error('Error sending message:', err));
+            console.log(selectedType);
 
-            sendMessage();
+            if (selectedType == 'user') {
+
+                // Отправка сообщения через SignalR
+                await connection.invoke("SendMessage", parseInt(receiverId), senderName, messageText)
+                    .catch(err => console.error('Error sending message:', err));
+
+                sendMessage();
+            } else if (selectedType == 'group')
+            {
+                await connection.invoke("SendMessageToGroup", messagesWith.textContent, senderName, messageText)
+                    .catch(err => console.error('Error sending message:', err));
+
+                sendMessageToGroup();
+            }
+                
 
             // Очистка поля ввода
             document.getElementById('messageInput').value = '';
@@ -690,6 +829,89 @@ if (sendMessageButton) {
         }
     });
 }
+
+
+// Обработка ввода в поле поиска
+    userGroupSearch.addEventListener('input', function () {
+        const searchTerm = userGroupSearch.value.trim();
+        searchGroupResults.style.display = searchTerm.length > 0 ? 'block' : 'none';
+
+        if (searchTerm.length > 0) {
+            fetch(`/Home/SearchUsers?term=${encodeURIComponent(searchTerm)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    searchGroupResults.innerHTML = data.length > 0
+                        ? data.map(user => 
+                            `<li><input data-userid="${user.id}" type="checkbox" id="User" name="User" class="userCheckbox"/>
+                                <label for="User">${user.userName}</label>
+                            </li>`).join('')
+                        : '<li>No users found</li>';
+                })
+                .catch(error => console.error('Error:', error));
+        } else {
+            searchGroupResults.innerHTML = '';
+        }
+    });
+
+
+
+
+
+    // Обработка нажатия на кнопку "Добавить"
+document.getElementById('addUserButton').addEventListener('click', async function () {
+    const groupId = selectedGroupId;
+    const selectedUsers = Array.from(document.querySelectorAll('.userCheckbox:checked'))
+        .map(checkbox => checkbox.dataset.userid);
+
+    console.log(selectedUsers);
+    console.log(groupId);
+    if (selectedUsers.length === 0) {
+        alert('Пожалуйста, выберите хотя бы одного пользователя.');
+        return;
+    }
+
+    // Асинхронная функция для отправки одного пользователя
+    const addUserToGroup = async (userId) => {
+        try {
+            console.log(userId);
+            console.log(groupId);
+            const response = await fetch('/Group/AddUserToGroup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ groupId: parseInt(groupId), userId: parseInt(userId) })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || "Ошибка при добавлении пользователя.");
+            }
+
+            const data = await response.json();
+            console.log(data.message || `Пользователь ${userId} успешно добавлен.`);
+        } catch (error) {
+            console.error(`Ошибка при добавлении пользователя ${userId}:`, error.message);
+        }
+    };
+
+    // Последовательно отправляем каждого пользователя
+    for (const userId of selectedUsers) {
+        console.log(userId);
+        await addUserToGroup(userId);
+    }
+
+    // Закрываем модальное окно после завершения всех запросов
+    alert("Все пользователи обработаны.");
+    document.getElementById('addUserModal').style.display = 'none';
+});
+
+
 
 
 
@@ -735,9 +957,12 @@ if (sendMessageButton) {
     // Обработка клика по существующему пользователю
     document.querySelectorAll('.existing-user').forEach(item => {
         item.addEventListener('click', function () {
+            addToGroup.style.display = 'none';
             const userId = parseInt(this.dataset.userid);
             if (!isNaN(userId)) {
                 selectUser(userId, this.textContent);
+                selectedType = 'user';
+                console.log(currentType);
             } else {
                 console.error("Некорректный формат userId.");
             }
@@ -746,7 +971,24 @@ if (sendMessageButton) {
 
 
 
- async function selectUser(userId, userName) {
+// Обработка клика по существующей группе
+document.querySelectorAll('.existing-group').forEach(item => {
+    item.addEventListener('click', function () {
+        addToGroup.style.display = 'block';
+        const groupId = parseInt(this.dataset.groupid);
+        if (!isNaN(groupId)) {
+            selectGroup(groupId, this.textContent);
+            selectedType = 'group';
+            console.log(currentType);
+        } else {
+            console.error("Некорректный формат groupId.");
+        }
+    });
+});
+
+
+
+async function selectUser(userId, userName) {
     selectedUserId = userId;
     messagesWith.textContent = `${userName}`;
     messageInputArea.style.display = 'flex';
@@ -768,13 +1010,13 @@ if (sendMessageButton) {
         if (userId === currentUserId) {
             // Если совпадает, показываем только кнопку Close
             chatControls.forEach(control => {
-                control.style.display = 'block';
+                control.style.display = 'flex';
             });
             document.getElementById('callButton').style.display = 'none';
         } else {
             // Если не совпадает, показываем все кнопки
             chatControls.forEach(control => {
-                control.style.display = 'block';
+                control.style.display = 'flex';
             });
             document.getElementById('callButton').style.display = 'block';
         }
@@ -785,11 +1027,144 @@ if (sendMessageButton) {
 
 
 
+async function selectGroup(groupId, groupName) {
+    selectedGroupId = groupId;
+    //connection.invoke("JoinGroup", selectedGroupId);
+    messagesWith.textContent = `${groupName}`;
+    messageInputArea.style.display = 'flex';
+    loadMessagesFromGroup(groupId);
+    resetSearchResults();
+
+    // Получаем все элементы управления в чате
+    const chatControls = document.querySelectorAll('.chatControls');
+
+    // Показываем все элементы управления
+    chatControls.forEach(control => {
+        control.style.display = 'flex';
+    });
+
+    // Получаем кнопку вызова
+    const callButton = document.getElementById('callButton');
+
+}
+
+
+
+
 
     // Обработка кнопки Close
     document.getElementById('closeChatButton').addEventListener('click', function() {
         resetMessageArea();
     });
+
+
+
+async function getUserName(userId) {
+    try {
+        const response = await fetch(`/Home/GetUserName/${userId}`); // Используем шаблонные строки
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const user = await response.json();
+        return user.userName; // Возвращаем имя пользователя
+    } catch (error) {
+        console.error('Error fetching user name:', error);
+        return "Unknown User"; // Возвращаем значение по умолчанию в случае ошибки
+    }
+}
+
+async function loadMessagesFromGroup(groupId) {
+    if (isNaN(groupId)) {
+        console.error("Некорректный формат groupId.");
+        return;
+    }
+
+    try {
+        const response = await fetch(`/Group/GetMessages/${groupId}`); // Убедитесь, что это правильный путь
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            const sortedMessages = data.sort((a, b) => new Date(a.Timestamp) - new Date(b.Timestamp));
+
+            // Создаем массив промисов для получения имен пользователей
+            const messagePromises = sortedMessages.map(async (message) => {
+                const userName = await getUserName(message.senderId); // Получаем имя пользователя
+                if (message.isCurrentUserSender) {
+                    return `
+                    <div class="message ${message.isCurrentUserSender ? 'message-sent' : 'message-received'}">
+                        
+                        ${message.text} <sub>${message.timestamp}</sub>
+                    </div>`;
+                }
+                return `
+                    <div class="message ${message.isCurrentUserSender ? 'message-sent' : 'message-received'}">
+                        <b>${userName}</b> <br>
+                        ${message.text} <sub>${message.timestamp}</sub>
+                    </div>`;
+            });
+
+            // Ожидаем завершения всех промисов
+            const messageHtml = (await Promise.all(messagePromises)).join('');
+            messageArea.innerHTML = messageHtml;
+            messageArea.scrollTop = messageArea.scrollHeight;
+        } else {
+            messageArea.innerHTML = '<p>No messages found for this group.</p>';
+        }
+    } catch (error) {
+        console.error('Error fetching messages:', error);
+        if (error.message.includes("Failed to fetch")) {
+            messageArea.innerHTML = '<p>Unable to connect to the server. Please check your connection.</p>';
+        } else {
+            messageArea.innerHTML = '<p>Error loading messages. Please try again later.</p>';
+        }
+    }
+}
+
+
+
+function sendMessageToGroup() {
+    const messageText = messageInput.value.trim();
+    if (!messageText) {
+        alert('Please enter a message.');
+        return;
+    }
+
+    const groupId = selectedGroupId; // Убедитесь, что selectedGroupId установлен
+    console.log(groupId);
+
+    fetch('/Group/SendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ GroupId: groupId, Text: messageText })
+    })
+    .then(response => {
+        console.log(response);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log(data);
+        if (!data.success) {
+            alert('Failed to send message.');
+        } else {
+            // Очищаем поле ввода после успешной отправки
+            messageInput.value = '';
+        }
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        alert('Error sending message. Please try again later.');
+    });
+}
+
+
+
+
 
 
 
@@ -872,6 +1247,7 @@ function loadMessages(userId) {
     resetMessageArea();
 
     function resetMessageArea() {
+        currentType = null;
         messageArea.innerHTML = '<p>Select a user to start chatting.</p>';
         messageInputArea.style.display = 'none';
         document.querySelectorAll('.chatControls').forEach(control => {

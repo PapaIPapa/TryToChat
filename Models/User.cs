@@ -8,5 +8,7 @@
         public string PasswordHash { get; set; }
         public string Role { get; set; }
 
+        public ICollection<Group>? Groups { get; set; } = new List<Group>();
+
     }
 }
