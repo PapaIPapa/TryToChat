@@ -4,6 +4,7 @@ using AhuenniyChat.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AhuenniyChat.Migrations
 {
     [DbContext(typeof(AhuenniyChatContext))]
-    partial class AhuenniyChatContextModelSnapshot : ModelSnapshot
+    [Migration("20250220215038_AddStatusToGroup")]
+    partial class AddStatusToGroup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,34 +23,6 @@ namespace AhuenniyChat.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
-
-            modelBuilder.Entity("AhuenniyChat.Models.Call", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<DateTime?>("EndAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("GroupId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("StartAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GroupId");
-
-                    b.ToTable("Call");
-                });
 
             modelBuilder.Entity("AhuenniyChat.Models.Group", b =>
                 {
@@ -134,21 +108,6 @@ namespace AhuenniyChat.Migrations
                     b.ToTable("User");
                 });
 
-            modelBuilder.Entity("CallUser", b =>
-                {
-                    b.Property<int>("CallsId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UsersId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CallsId", "UsersId");
-
-                    b.HasIndex("UsersId");
-
-                    b.ToTable("CallUser", (string)null);
-                });
-
             modelBuilder.Entity("GroupUser", b =>
                 {
                     b.Property<int>("GroupsId")
@@ -162,16 +121,6 @@ namespace AhuenniyChat.Migrations
                     b.HasIndex("UsersId");
 
                     b.ToTable("UserGroups", (string)null);
-                });
-
-            modelBuilder.Entity("AhuenniyChat.Models.Call", b =>
-                {
-                    b.HasOne("AhuenniyChat.Models.Group", "Group")
-                        .WithMany("Calls")
-                        .HasForeignKey("GroupId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Group");
                 });
 
             modelBuilder.Entity("AhuenniyChat.Models.Message", b =>
@@ -198,21 +147,6 @@ namespace AhuenniyChat.Migrations
                     b.Navigation("Sender");
                 });
 
-            modelBuilder.Entity("CallUser", b =>
-                {
-                    b.HasOne("AhuenniyChat.Models.Call", null)
-                        .WithMany()
-                        .HasForeignKey("CallsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AhuenniyChat.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UsersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("GroupUser", b =>
                 {
                     b.HasOne("AhuenniyChat.Models.Group", null)
@@ -226,11 +160,6 @@ namespace AhuenniyChat.Migrations
                         .HasForeignKey("UsersId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("AhuenniyChat.Models.Group", b =>
-                {
-                    b.Navigation("Calls");
                 });
 #pragma warning restore 612, 618
         }

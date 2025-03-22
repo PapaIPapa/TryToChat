@@ -4,6 +4,7 @@ using AhuenniyChat.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AhuenniyChat.Migrations
 {
     [DbContext(typeof(AhuenniyChatContext))]
-    partial class AhuenniyChatContextModelSnapshot : ModelSnapshot
+    [Migration("20250220232305_AddCallTable")]
+    partial class AddCallTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,7 +32,7 @@ namespace AhuenniyChat.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<DateTime?>("EndAt")
+                    b.Property<DateTime>("EndAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("GroupId")

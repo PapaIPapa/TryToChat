@@ -17,8 +17,9 @@ namespace AhuenniyChat.Data
 
         public DbSet<AhuenniyChat.Models.User> User { get; set; } = default!;
         public DbSet<AhuenniyChat.Models.Message> Message { get; set; } = default!;
-
         public DbSet<AhuenniyChat.Models.Group> Group { get; set; } = default!;
+        public DbSet<AhuenniyChat.Models.Call> Call { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -38,6 +39,17 @@ namespace AhuenniyChat.Data
                 .HasMany(g => g.Users)
                 .WithMany(u => u.Groups)
                 .UsingEntity(j => j.ToTable("UserGroups"));
+
+            modelBuilder.Entity<Call>()
+                .HasOne(c => c.Group) // У звонка есть одна группа
+                .WithMany(g => g.Calls) // У группы может быть много звонков
+                .HasForeignKey(c => c.GroupId) // Внешний ключ в Call
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Call>()
+                .HasMany(c => c.Users) // У звонка может быть много пользователей
+                .WithMany(u => u.Calls) // У пользователя может быть много звонков
+                .UsingEntity(j => j.ToTable("CallUser"));
 
 
         }

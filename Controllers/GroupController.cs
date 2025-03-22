@@ -36,7 +36,7 @@ namespace AhuenniyChat.Controllers
                 return BadRequest(new { message = "User not found." });
             }
 
-            var group = new Group { Name = request.GroupName };
+            var group = new Group { Name = request.GroupName, InCall = false };
             _context.Group.Add(group);
             group.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -130,6 +130,55 @@ namespace AhuenniyChat.Controllers
             }).ToList();
 
             return Ok(userList);
+        }
+
+
+
+
+        [HttpGet("GetStatus/{groupId}")]
+        public async Task<IActionResult> GetStatus(int groupId)
+        {
+            var group = await _context.Group
+                .FirstOrDefaultAsync(g => g.Id == groupId);
+
+            if (group == null)
+            {
+                return NotFound($"Group with ID {groupId} not found.");
+            }
+
+            return Ok(group.InCall);
+        }
+
+        public class Status
+        {
+            public int groupId { get; set; }
+            public bool inCall { get; set; }
+        }
+
+        [HttpPut("SetStatus")]
+        public async Task<IActionResult> SetStatus([FromBody] Status status)
+        {
+            if (status == null)
+            {
+                return BadRequest("Invalid status data.");
+            }
+
+            var group = await _context.Group
+                .FirstOrDefaultAsync(g => g.Id == status.groupId);
+
+            if (group == null)
+            {
+                return NotFound($"Group with ID {status.groupId} not found.");
+            }
+
+            // Обновляем статус InCall
+            group.InCall = status.inCall;
+
+            // Сохраняем изменения в базе данных
+            _context.Group.Update(group);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, message = "Статус изменен успешно." });
         }
 
 

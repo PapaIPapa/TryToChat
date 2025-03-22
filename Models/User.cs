@@ -9,6 +9,8 @@
         public string Role { get; set; }
 
         public ICollection<Group>? Groups { get; set; } = new List<Group>();
-
+        public ICollection<Call>? Calls { get; set; } = new List<Call>(); // Связь с Call
     }
+
 }
+

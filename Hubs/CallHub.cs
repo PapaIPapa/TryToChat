@@ -44,6 +44,13 @@ namespace AhuenniyChat.Hubs
             await Clients.User(userId).SendAsync("HangUpCall");
         }
 
+
+        // Отправка сигнала (SDP или ICE кандидата) конкретному пользователю
+        public async Task SendSignal(int targetConnectionId, int senderId, string signal)
+        {
+            await Clients.User(targetConnectionId.ToString()).SendAsync("ReceiveGroupSignal", senderId, signal);
+        }
+
     }
 
 }
